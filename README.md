@@ -1,4 +1,4 @@
-## TTA Projects
+## TTA Class Files
 
 This page contains the programs for each class.
 
