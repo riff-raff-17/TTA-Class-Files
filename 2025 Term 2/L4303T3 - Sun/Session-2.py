@@ -29,6 +29,10 @@ LARGE_CACTUS = [pygame.image.load('Assets/Cactus/LargeCactus1.png'),
                 pygame.image.load('Assets/Cactus/LargeCactus2.png'),
                 pygame.image.load('Assets/Cactus/LargeCactus3.png')]
 
+'''Scale the cacti down slightly
+SMALL_CACTUS = [pygame.transform.scale(pygame.image.load(f'Assets/Cactus/SmallCactus{i}.png'), (30, 30)) for i in range(1, 4)]
+LARGE_CACTUS = [pygame.transform.scale(pygame.image.load(f'Assets/Cactus/LargeCactus{i}.png'), (45, 45)) for i in range(1, 4)]
+'''
 # Dino class
 class Dinosaur:
     X_POS = 80
