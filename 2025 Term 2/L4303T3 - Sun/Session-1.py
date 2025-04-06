@@ -73,7 +73,7 @@ def main():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
-        
+
         SCREEN.fill((255, 255, 255))
 
         for dinosaur in dinosaurs:
