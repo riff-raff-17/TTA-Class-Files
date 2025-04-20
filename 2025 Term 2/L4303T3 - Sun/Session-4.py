@@ -45,6 +45,8 @@ class Dinosaur:
         self.jump_vel = self.JUMP_VEL
         self.rect = pygame.Rect(self.X_POS, self.Y_POS, img.get_width(), img.get_height())
         self.step_index = 0
+        self.color = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
+
 
     def update(self):
         if self.dino_run:
@@ -72,6 +74,11 @@ class Dinosaur:
 
     def draw(self, SCREEN):
         SCREEN.blit(self.image, (self.rect.x, self.rect.y))
+        pygame.draw.rect(SCREEN, self.color, 
+            (self.rect.x, self.rect.y, self.rect.width, self.rect.height), 2)
+        for obstacle in obstacles:
+            pygame.draw.line(SCREEN, self.color, 
+            (self.rect.x + 54, self.rect.y + 12), obstacle.rect.center, 2)
 
 class Obstacle:
     def __init__(self, image, number_of_cacti):
@@ -145,6 +152,16 @@ def eval_genomes(genomes, config):
         if x_pos_bg <= -image_width:
             x_pos_bg = 0
         x_pos_bg -= game_speed
+    
+    def statistics():
+        global dinosaurs, game_speed, ge
+        text_1 = FONT.render(f'Dinosaurs: {len(dinosaurs)}', True, (0, 0, 0))
+        text_2 = FONT.render(f'Game Speed: {game_speed}', True, (0, 0, 0))
+        text_3 = FONT.render(f'Generation: {pop.generation+1}', True, (0, 0, 0))
+
+        SCREEN.blit(text_1, (50, 50))
+        SCREEN.blit(text_2, (50, 80))
+        SCREEN.blit(text_3, (50, 110))
 
     run = True
     while run:
@@ -187,12 +204,14 @@ def eval_genomes(genomes, config):
                 dinosaur.dino_run = False
         
         # FPS
+        statistics()
         score()
         background()
         clock.tick(60)
         pygame.display.update()
 
 def run(config_path):
+    global pop
     config = neat.config.Config(
         neat.DefaultGenome,
         neat.DefaultReproduction,
@@ -202,9 +221,27 @@ def run(config_path):
     )
 
     pop = neat.Population(config)
+
+    pop.add_reporter(neat.StdOutReporter(True))
+    stats = neat.StatisticsReporter()
+    pop.add_reporter(stats)
+
     pop.run(eval_genomes, 50)
+
+def update_config(config_path, pop_size):
+    with open(config_path, 'r') as file:
+        lines = file.readlines()
+    
+    with open(config_path, 'w') as file:
+        for line in lines:
+            if line.startswith("pop_size"):
+                file.write(f"pop_size = {pop_size}\n")
+            else:
+                file.write(line)
 
 if __name__ == "__main__":
     local_dir = os.path.dirname(__file__)
     config_path = os.path.join(local_dir, "config.txt")
+    pop_size = input("What population size? >")
+    update_config(config_path, pop_size)
     run(config_path)
