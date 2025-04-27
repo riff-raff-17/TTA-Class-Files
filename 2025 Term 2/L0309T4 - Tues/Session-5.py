@@ -22,7 +22,7 @@ while True:
     frame = cv2.flip(frame, 1)
 
     # Convert frame to RBG (Mediapipe uses RGB)
-    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HLS)
+    # frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
     rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
     # Process the frame
@@ -39,8 +39,8 @@ while True:
 
             # Draw confidence score
             confidence = int(detection.score[0] * 100)
-            cv2.putText(frame, f'{confidence}% chance of Caden\'s dad', (x, y - 10),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (188, 0, 255), 2)
+            cv2.putText(frame, f'{confidence}% chance of Josh', (x, y - 10),
+                        cv2.FONT_HERSHEY_DUPLEX, 0.6, (188, 0, 255), 2)
 
     # Display frame
     cv2.imshow("Caden tracker", frame)
