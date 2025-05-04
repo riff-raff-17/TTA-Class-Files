@@ -44,7 +44,7 @@ class Car(pygame.sprite.Sprite):
             self.vel_vector.rotate_ip(-self.rotation_vel)
         self.image = pygame.transform.rotozoom(self.original_image, self.angle, 0.1)
         self.rect = self.image.get_rect(center=self.rect.center)
-    
+
 car = pygame.sprite.GroupSingle(Car())
 
 def eval_genomes():
