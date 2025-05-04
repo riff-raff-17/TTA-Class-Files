@@ -34,6 +34,8 @@ class Car(pygame.sprite.Sprite):
     def update(self):
         self.drive()
         self.rotate()
+        # for radar_angle in (-60, -30, 0, 30, 60):
+        #     self.radar(radar_angle)
 
     def drive(self):
         if self.drive_state:
@@ -48,6 +50,14 @@ class Car(pygame.sprite.Sprite):
             self.vel_vector.rotate_ip(-self.rotation_vel)
         self.image = pygame.transform.rotozoom(self.original_image, self.angle, 0.1)
         self.rect = self.image.get_rect(center=self.rect.center)
+
+    def radar(self, radar_angle):
+        length = 0
+        x = int(self.rect.center[0])
+        y = int(self.rect.center[1])
+
+        while not SCREEN.get_at((x, y)) == GRASS_COLOR:
+            length += 1
 
     def check_collision(self):
         # Get color of the pixel under the car's center position
