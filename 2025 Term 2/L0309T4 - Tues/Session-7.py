@@ -26,6 +26,10 @@ def stop():
     print("Robot → stop")
     got.mecanum_stop()
 
+def talk():
+    user_input = input("What to say? >")
+    got.play_audio_tts(user_input, 1, True)
+
 # ————————————————————————————————————————————————
 
 def main():
@@ -77,6 +81,8 @@ def main():
                     turn_left()
                 elif evt.key == pygame.K_d:
                     turn_right()
+                elif evt.key == pygame.K_t:
+                    talk()
                 
             elif evt.type == pygame.KEYUP:
                 if evt.key in (pygame.K_w, pygame.K_s, 
