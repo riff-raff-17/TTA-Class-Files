@@ -100,3 +100,7 @@ def load_word_list(filename):
     with open(path, 'r') as f:
         return [line.strip() for line in f if len(line.strip()) == 5]
     
+if __name__ == '__main__':
+    answers = load_word_list('shuffled_real_wordles.txt')
+    allowed = load_word_list('official_allowed_guesses.txt')
+    solver = WordleSolver(allowed_guesses=allowed, possible_answers=answers)
