@@ -45,6 +45,8 @@ def main():
     clock = pygame.time.Clock()
     running = True
     detect = False
+    joint_1 = 0
+    joints_23 = 0
 
     while running:
         # 1) Grab frame from UGOT
@@ -108,11 +110,42 @@ def main():
                     talk()
                 elif evt.key == pygame.K_q:
                     detect = not detect
+                elif evt.key == pygame.K_LEFT:
+                    joint_1 += 5
+                    if joint_1 >= 90:
+                        joint_1 = 90
+                    else:
+                        got.mechanical_single_joint_control(1, joint_1, 100)
+                elif evt.key == pygame.K_RIGHT:
+                    joint_1 -= 5
+                    if joint_1 <= -90:
+                        joint_1 = -90
+                    else:
+                        got.mechanical_single_joint_control(1, joint_1, 100)
+                elif evt.key == pygame.K_UP:
+                    joints_23 += 10
+                    if joints_23 >= 45:
+                        joints_23 = 45
+                    else:
+                        got.mechanical_joint_control(joint_1, joints_23, joints_23, 100)
+                elif evt.key == pygame.K_DOWN:
+                    joints_23 -= 10
+                    if joints_23 <= -45:
+                        joints_23 = -45
+                    else:
+                        got.mechanical_joint_control(joint_1, joints_23, joints_23, 100)
+                    
                 
+
             elif evt.type == pygame.KEYUP:
                 if evt.key in (pygame.K_w, pygame.K_s, 
                                pygame.K_a, pygame.K_d):
                     stop()
+                elif evt.key == pygame.K_SPACE:
+                    if got.mechanical_get_clamp_status():
+                        got.mechanical_clamp_release()
+                    else:
+                        got.mechanical_clamp_close()
 
         # 5) Cap the frame rate at 30 FPS
         clock.tick(30)
