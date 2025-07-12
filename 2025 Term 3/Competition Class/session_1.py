@@ -80,7 +80,17 @@ while q:
                 screen.update()
                 time.sleep(DELAY)
 
+# Reconstruct the path
+if found:
+    cur = goal
+    while cur:
+        draw_cell(*cur, "yellow")
+        cur = came_from[cur]
+        screen.update()
+        time.sleep(DELAY)
 
-
+else:
+    t.goto(0, 0)
+    t.write("No path found!", align="center", font=("Arial", 16, "bold"))
 
 screen.exitonclick()
