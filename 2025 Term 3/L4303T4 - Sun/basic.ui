@@ -1,0 +1,53 @@
+<?xml version='1.0' encoding='utf-8'?>
+<interface version="1.4" author="PygubuDesigner 0.41.3">
+  <project>
+    <settings>
+      <setting id="name">app_ui</setting>
+      <setting id="description">this is for practicing Pygubu</setting>
+      <setting id="module_name">app_ui</setting>
+      <setting id="template">application</setting>
+      <setting id="main_widget">frame</setting>
+      <setting id="main_classname">frame</setting>
+      <setting id="main_menu" />
+      <setting id="output_dir" />
+      <setting id="output_dir2" />
+      <setting id="import_tkvariables">False</setting>
+      <setting id="use_ttk_styledefinition_file">False</setting>
+      <setting id="use_i18n">False</setting>
+      <setting id="all_ids_attributes">False</setting>
+      <setting id="generate_code_onsave">True</setting>
+      <setting id="use_window_centering_code">False</setting>
+      <setting id="ttk_style_definition_file" />
+    </settings>
+    <customwidgets />
+  </project>
+  <object class="ttk.Frame" id="frame" named="True">
+    <property name="height">200</property>
+    <property name="width">400</property>
+    <layout manager="pack">
+      <property name="side">top</property>
+    </layout>
+    <child>
+      <object class="ttk.Label" id="label" named="True">
+        <property name="background">#ffd900</property>
+        <property name="font">{Tk} 100 {}</property>
+        <property name="text" translatable="yes">MY NAME IS ETHAN 
+COOKIE CLICKER</property>
+        <layout manager="pack">
+          <property name="side">top</property>
+        </layout>
+      </object>
+    </child>
+    <child>
+      <object class="ttk.Button" id="button" named="True">
+        <property name="command" type="command" cbtype="simple">on_button_click</property>
+        <property name="text" translatable="yes">Click me please</property>
+        <property name="width">50</property>
+        <layout manager="pack">
+          <property name="expand">true</property>
+          <property name="side">top</property>
+        </layout>
+      </object>
+    </child>
+  </object>
+</interface>
