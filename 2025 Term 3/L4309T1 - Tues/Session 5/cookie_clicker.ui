@@ -1,0 +1,61 @@
+<?xml version='1.0' encoding='utf-8'?>
+<interface version="1.4" author="PygubuDesigner 0.41.3">
+  <project>
+    <settings>
+      <setting id="name">cookie_clicker</setting>
+      <setting id="description">this is a cookie clicker</setting>
+      <setting id="module_name">cookie_clicker</setting>
+      <setting id="template">application</setting>
+      <setting id="main_widget">frame2</setting>
+      <setting id="main_classname">CookieClicker</setting>
+      <setting id="main_menu" />
+      <setting id="output_dir" />
+      <setting id="output_dir2" />
+      <setting id="import_tkvariables">False</setting>
+      <setting id="use_ttk_styledefinition_file">False</setting>
+      <setting id="use_i18n">False</setting>
+      <setting id="all_ids_attributes">False</setting>
+      <setting id="generate_code_onsave">True</setting>
+      <setting id="use_window_centering_code">False</setting>
+      <setting id="ttk_style_definition_file" />
+    </settings>
+    <customwidgets />
+  </project>
+  <object class="ttk.Frame" id="frame2">
+    <property name="height">200</property>
+    <property name="width">200</property>
+    <layout manager="pack">
+      <property name="side">top</property>
+    </layout>
+    <child>
+      <object class="ttk.Label" id="label1">
+        <property name="font">{Helvetica} 72 {}</property>
+        <property name="text" translatable="yes">Any Awesome 
+Actively Austin's
+Cookie Clicker</property>
+        <layout manager="pack">
+          <property name="side">top</property>
+        </layout>
+      </object>
+    </child>
+    <child>
+      <object class="ttk.Button" id="cookie_button" named="True">
+        <property name="command" type="command" cbtype="simple">on_cookie_pressed</property>
+        <property name="text" translatable="yes">Click me!!!</property>
+        <property name="width">30</property>
+        <layout manager="pack">
+          <property name="side">top</property>
+        </layout>
+      </object>
+    </child>
+    <child>
+      <object class="ttk.Label" id="cookie_label" named="True">
+        <property name="font">{Helvetica Neue} 24 {}</property>
+        <property name="text" translatable="yes">Cookies: 0</property>
+        <layout manager="pack">
+          <property name="side">top</property>
+        </layout>
+      </object>
+    </child>
+  </object>
+</interface>
