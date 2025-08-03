@@ -11,3 +11,4 @@ torchvision==0.22.1
 tqdm==4.67.1
 pygubu==0.38.2
 pygubu-designer==0.41.3
+pygame==2.6.1
