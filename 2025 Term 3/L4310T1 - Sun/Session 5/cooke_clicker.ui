@@ -1,0 +1,62 @@
+<?xml version='1.0' encoding='utf-8'?>
+<interface version="1.4" author="PygubuDesigner 0.41.4">
+  <project>
+    <settings>
+      <setting id="name">cookie_clicker</setting>
+      <setting id="description">it clicks cookies</setting>
+      <setting id="module_name">cookie_clicker</setting>
+      <setting id="template">application</setting>
+      <setting id="main_widget">mainframe</setting>
+      <setting id="main_classname">CookieClicker</setting>
+      <setting id="main_menu" />
+      <setting id="output_dir" />
+      <setting id="output_dir2" />
+      <setting id="import_tkvariables">False</setting>
+      <setting id="use_ttk_styledefinition_file">False</setting>
+      <setting id="use_i18n">False</setting>
+      <setting id="all_ids_attributes">False</setting>
+      <setting id="generate_code_onsave">True</setting>
+      <setting id="use_window_centering_code">False</setting>
+      <setting id="ttk_style_definition_file" />
+    </settings>
+    <customwidgets />
+  </project>
+  <object class="ttk.Frame" id="mainframe" named="True">
+    <property name="height">200</property>
+    <property name="width">200</property>
+    <layout manager="grid">
+      <property name="column">0</property>
+      <property name="row">0</property>
+    </layout>
+    <child>
+      <object class="ttk.Label" id="cookie_label" named="True">
+        <property name="font">{Helvetica} 72 {}</property>
+        <property name="text" translatable="yes">Cookie Clicker!</property>
+        <layout manager="grid">
+          <property name="column">0</property>
+          <property name="row">0</property>
+        </layout>
+      </object>
+    </child>
+    <child>
+      <object class="ttk.Button" id="cookie_button" named="True">
+        <property name="command" type="command" cbtype="simple">btn_clicked</property>
+        <property name="text" translatable="yes">Click me for cookies!</property>
+        <layout manager="grid">
+          <property name="column">0</property>
+          <property name="row">2</property>
+        </layout>
+      </object>
+    </child>
+    <child>
+      <object class="ttk.Label" id="num_cookies" named="True">
+        <property name="font">{Helvetica} 48 {}</property>
+        <property name="text" translatable="yes">Cookies: 0</property>
+        <layout manager="grid">
+          <property name="column">0</property>
+          <property name="row">1</property>
+        </layout>
+      </object>
+    </child>
+  </object>
+</interface>

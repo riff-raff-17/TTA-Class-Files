@@ -1,0 +1,76 @@
+<?xml version='1.0' encoding='utf-8'?>
+<interface version="1.4" author="PygubuDesigner 0.41.4">
+  <project>
+    <settings>
+      <setting id="name">ugot_controller</setting>
+      <setting id="description">controls the ugot lmao</setting>
+      <setting id="module_name">ugot_controller</setting>
+      <setting id="template">application</setting>
+      <setting id="main_widget">mainframe</setting>
+      <setting id="main_classname">UgotGUI</setting>
+      <setting id="main_menu" />
+      <setting id="output_dir" />
+      <setting id="output_dir2" />
+      <setting id="import_tkvariables">False</setting>
+      <setting id="use_ttk_styledefinition_file">False</setting>
+      <setting id="use_i18n">False</setting>
+      <setting id="all_ids_attributes">False</setting>
+      <setting id="generate_code_onsave">True</setting>
+      <setting id="use_window_centering_code">False</setting>
+      <setting id="ttk_style_definition_file" />
+    </settings>
+    <customwidgets />
+  </project>
+  <object class="ttk.Frame" id="mainframe" named="True">
+    <property name="height">200</property>
+    <property name="width">200</property>
+    <layout manager="grid">
+      <property name="column">0</property>
+      <property name="row">0</property>
+    </layout>
+    <child>
+      <object class="ttk.Button" id="btn_forward" named="True">
+        <property name="text" translatable="yes">Forward</property>
+        <bind sequence="&lt;ButtonPress&gt;" handler="forward_press" add="" />
+        <bind sequence="&lt;ButtonRelease&gt;" handler="forward_release" add="" />
+        <layout manager="grid">
+          <property name="column">1</property>
+          <property name="row">0</property>
+        </layout>
+      </object>
+    </child>
+    <child>
+      <object class="ttk.Button" id="btn_left" named="True">
+        <property name="text" translatable="yes">Left</property>
+        <bind sequence="&lt;ButtonPress&gt;" handler="left_press" add="" />
+        <bind sequence="&lt;ButtonRelease&gt;" handler="left_release" add="" />
+        <layout manager="grid">
+          <property name="column">0</property>
+          <property name="row">1</property>
+        </layout>
+      </object>
+    </child>
+    <child>
+      <object class="ttk.Button" id="btn_back" named="True">
+        <property name="text" translatable="yes">Backward</property>
+        <bind sequence="&lt;ButtonPress&gt;" handler="back_press" add="" />
+        <bind sequence="&lt;ButtonRelease&gt;" handler="back_release" add="" />
+        <layout manager="grid">
+          <property name="column">1</property>
+          <property name="row">2</property>
+        </layout>
+      </object>
+    </child>
+    <child>
+      <object class="ttk.Button" id="btn_right" named="True">
+        <property name="text" translatable="yes">Right</property>
+        <bind sequence="&lt;ButtonPress&gt;" handler="right_press" add="" />
+        <bind sequence="&lt;ButtonRelease&gt;" handler="right_release" add="" />
+        <layout manager="grid">
+          <property name="column">2</property>
+          <property name="row">1</property>
+        </layout>
+      </object>
+    </child>
+  </object>
+</interface>
