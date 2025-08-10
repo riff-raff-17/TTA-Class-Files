@@ -112,3 +112,86 @@ while True:
         )  
 
         # Overlay text on screen
+        start_text = font.render("Press SPACE to start", True, (0, 0, 0))
+        screen.blit(start_text, (SCREEN_WIDTH // 2 - start_text.get_width() // 2,
+                                 SCREEN_HEIGHT // 2 - start_text.get_height() // 2))
+        
+        # Flip display 
+        pygame.display.flip()
+
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_SPACE]:
+            in_countdown = False
+        
+        continue
+
+    # Physics
+    if not game_over:
+        # Read user input: left/right arrows will apply force
+        keys = pygame.key.get_pressed()
+        force = 0.0
+        if keys[pygame.K_LEFT]:
+            force = -force_mag
+        elif keys[pygame.K_RIGHT]:
+            force = force_mag
+
+        # CartPole dynamics
+        sintheta = math.sin(theta)
+        costheta = math.cos(theta)
+
+        temp = (force + polemass_length * theta_vel ** 2 * sintheta) / total_mass
+        thetaacc = (gravity * sintheta - costheta * temp) / (
+            length * (4.0 / 3.0 - (masspole * costheta ** 2) / total_mass)
+        )
+        xacc = temp - (polemass_length * thetaacc * costheta) / total_mass
+
+        # Update state using dt
+        x += dt * x_vel
+        x_vel += dt * xacc
+        theta += dt * theta_vel
+        theta_vel += dt * thetaacc
+
+        elapsed_time += dt
+
+        # Failure conditions: cart out of bounds, pole angle too large
+        if abs(x) > x_threshold or abs(theta) > theta_threshold_radians:
+            game_over = True
+
+    # Drawing
+    screen.fill((255, 255, 255))
+
+    # Draw the track
+    pygame.draw.line(screen, (0, 0, 0), (0, cart_y + CART_HEIGHT // 2),
+                     (SCREEN_WIDTH, cart_y + CART_HEIGHT // 2), 2)
+    
+    # Draw the cart
+    cart_x_pix = physics_x_to_screen(x) - CART_WIDTH // 2
+    cart_rect = pygame.Rect(
+        cart_x_pix, cart_y - CART_HEIGHT // 2, CART_WIDTH, CART_HEIGHT
+    )
+    pygame.draw.rect(screen, (0, 0, 255), cart_rect)
+
+    # Draw the pole
+    pole_len_pix = length * (SCREEN_HEIGHT * 0.5)
+    pole_x_end = cart_x_pix + CART_WIDTH // 2 + pole_len_pix * math.sin(theta)
+    pole_y_end = cart_y - CART_HEIGHT// 2 - pole_len_pix * math.cos(theta)
+    pygame.draw.line(
+        screen, (255, 0, 0),
+        (cart_x_pix + CART_WIDTH // 2, cart_y - CART_HEIGHT // 2),
+        (pole_x_end, pole_y_end), POLE_WIDTH
+    )  
+
+    # Display time survived as score
+    score_text = font.render(f"Time: {elapsed_time:.2f}s", True, (0, 0, 0))
+    screen.blit(score_text, (10, 10))
+
+    # If game over, show game over screen and press 'r' to restart
+    if game_over: 
+        over_text = font.render("Game over! Press R to restart", True, (255, 0, 0))
+        screen.blit(over_text, (SCREEN_WIDTH // 2 - over_text.get_width() // 2, SCREEN_HEIGHT // 2))
+
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_r]:
+            reset_environment() 
+
+    pygame.display.flip()
