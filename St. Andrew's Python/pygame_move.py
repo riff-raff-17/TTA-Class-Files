@@ -1,6 +1,6 @@
 import cv2              # cv2: for camera vision
 import numpy as np      # numpy: for data transformation
-import pygame           # pygame: for driving your robot
+import pygame           # pygame: for driving the robot
 from ugot import ugot   # ugot: robot commands
 
 got = ugot.UGOT()
@@ -48,8 +48,6 @@ def main():
         nparr = np.frombuffer(frame, np.uint8)
         data = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
         flipped = cv2.flip(data, 1)
-        frame_rgb = cv2.cvtColor(flipped, cv2.COLOR_BGR2RGB)
-
         frame_rgb = cv2.cvtColor(flipped, cv2.COLOR_BGR2RGB)
 
         # 2) On first frame, create a pygame window of matching size
