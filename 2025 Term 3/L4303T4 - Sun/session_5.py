@@ -192,6 +192,6 @@ while True:
 
         keys = pygame.key.get_pressed()
         if keys[pygame.K_r]:
-            reset_environment() 
+            reset_environment()
 
     pygame.display.flip()
