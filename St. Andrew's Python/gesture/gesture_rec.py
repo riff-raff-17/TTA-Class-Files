@@ -4,13 +4,12 @@ from ugot import ugot
 import numpy as np
 
 got = ugot.UGOT()
-got.initialize('192.168.88.1')
+got.initialize('192.168.1.29')
 got.open_camera()
 
 mp_hands = mp.solutions.hands
 mp_drawing = mp.solutions.drawing_utils
 mp_styles = mp.solutions.drawing_styles
-
 
 with mp_hands.Hands(
     static_image_mode=False,

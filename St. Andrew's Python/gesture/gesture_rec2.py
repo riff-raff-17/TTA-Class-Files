@@ -4,7 +4,7 @@ from ugot import ugot
 import numpy as np
 
 got = ugot.UGOT()
-got.initialize('192.168.88.1')
+got.initialize('192.168.1.29')
 got.open_camera()
 
 mp_hands = mp.solutions.hands

@@ -100,7 +100,7 @@ with mp_hands.Hands(
         # Debounce: trigger on rising edge only
         if pointing_active_now and not pointing_active_prev:
             forward()
-        else:
+        elif not pointing_active_now and pointing_active_prev:
             stop()
         pointing_active_prev = pointing_active_now
 
