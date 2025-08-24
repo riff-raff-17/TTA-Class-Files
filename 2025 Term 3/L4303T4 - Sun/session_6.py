@@ -75,3 +75,68 @@ def compute_returns(rewards, gamma):
     # Normalize
     returns = (returns - returns.mean()) / (returns.std() + 1e-9)
     return returns
+
+"""
+# Fake returns
+rs = [1, 1, 1, 1]
+
+# Compute raw discounted (no normalization)
+gamma = 0.99
+raw_returns = []
+R = 0
+for r in reversed(rs):
+    R = r + gamma * R
+    raw_returns.insert(0, R)
+
+# Compute normalized returns (like in the real ai)
+returns_tensor = torch.tensor(raw_returns, dtype=torch.float32)
+normalized_returns = (returns_tensor - returns_tensor.mean()) / (returns_tensor.std() + 1e-9)
+
+print("Toy rewards: ", rs)
+print("Raw discounted returns: ", [round(x, 2) for x in raw_returns])
+print("Normalized discounted returns: ", [round(x.item(), 2) for x in normalized_returns])
+"""
+
+# Training loop
+def train_policy_gradient(num_episodes=500, print_interval=50):
+    episode_rewards = []
+
+    for episode in range(1, num_episodes + 1):
+        state, _ = env.reset()
+        log_probs = []
+        rewards = []
+        done = False
+
+        while not done:
+            action, log_prob = select_action(state)
+            next_state, reward, terminated, truncated, _ = env.step(action)
+            done = terminated or truncated
+
+            log_probs.append(log_prob)
+            rewards.append(reward)
+            state = next_state
+        
+        # Turn rewards into returns (credit over time)
+        returns = compute_returns(rewards, gamma)
+
+        # REINFORCE: encourage actions that lead to higher return
+        loss_terms = []
+        for log_prob, R in zip(log_probs, returns):
+            loss_terms.append(-log_prob * R)
+        loss = torch.stack(loss_terms).sum()
+
+        # Standard pytorch update
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+        total_reward = sum(rewards)
+        episode_rewards.append(total_reward)
+
+        # Periodic progress printouts
+        if episode % print_interval == 0:
+            avg_reward = sum(episode_rewards[-print_interval:]) / print_interval
+            print(f"Episode {episode}\tAverage Reward: {avg_reward:.2f}")
+
+    return episode_rewards
+
