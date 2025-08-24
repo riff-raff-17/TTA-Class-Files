@@ -140,3 +140,16 @@ def train_policy_gradient(num_episodes=500, print_interval=50):
 
     return episode_rewards
 
+# Run training
+# This may take a while depending on the computer
+episode_rewards = train_policy_gradient(num_episodes=100, print_interval=10)
+
+def plot_rewards(rewards):
+    plt.figure(figsize=(10, 5))
+    plt.plot(rewards)
+    plt.xlabel('Episode')
+    plt.ylabel("Total Reward")
+    plt.title("Episode Reward over Time")
+    plt.show()
+
+plot_rewards(episode_rewards)
