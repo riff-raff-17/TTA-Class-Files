@@ -91,3 +91,26 @@ class Voxel(Button):
             scale=(1.001, cap_height, 1.001),
         )
 
+# Build some ground
+for z in range(8):
+    for x in range(8):
+        Voxel(position=(x, 0, z))
+
+# Interactions
+def input(key):
+    if key == 'left mouse down':
+        hit_info = raycast(camera.world_position, camera.forward, distance=5)
+        if hit_info.hit:
+            Voxel(position=hit_info.entity.position + hit_info.normal)
+    
+    if key == 'right mouse down' and mouse.hovered_entity:
+        # Destroy the Voxel 'parent' if you clicked any of its parts
+        to_destroy = mouse.hovered_entity
+        while to_destroy and not isinstance(to_destroy, Voxel):
+            to_destroy = to_destroy.parent
+        if to_destroy:
+            destroy(to_destroy)
+
+player = FirstPersonController()
+player.y=2
+app.run()
