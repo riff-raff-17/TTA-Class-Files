@@ -1,2 +1,4 @@
 ollama==0.5.1
-faiss-cpu
+faiss-cpu==1.11.0.post1
+pypdf
+sentence-transformers

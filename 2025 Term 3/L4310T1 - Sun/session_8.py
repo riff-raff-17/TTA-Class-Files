@@ -4,23 +4,28 @@ import numpy as np
 import mediapipe as mp
 from ugot import ugot
 got = ugot.UGOT()
-got.initialize('192.168.1.220')
+got.initialize('192.168.1.120')
 
 # Robot motion stubs
 def forward():
     print("Going forward")
+    got.mecanum_move_speed(0, 30)
 
 def backward():
     print("Going backward")
+    got.mecanum_move_speed(1, 30)
 
 def left():
     print("Going left")
+    got.mecanum_turn_speed(2, 45)
 
 def right():
     print("Going right")
+    got.mecanum_turn_speed(3, 45)
 
 def stop():
     print("Stopping")
+    got.mecanum_stop()
 
 mp_hands = mp.solutions.hands
 mp_drawing = mp.solutions.drawing_utils
@@ -51,7 +56,7 @@ def main():
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 720)
 
     if not cap.isOpened():
-        print("Could not open camera :( Ask teacher rafa")
+        print("Could not open camera")
         return
     
     last_action = None
