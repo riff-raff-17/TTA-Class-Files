@@ -121,4 +121,5 @@ def input(key):
 
 player = FirstPersonController()
 player.y = 2
+player.cursor.scale = 0.001
 app.run()

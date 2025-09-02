@@ -1,32 +1,34 @@
+'''Andy makeup'''
+
 import time
 import cv2
 import numpy as np
 import mediapipe as mp
 from ugot import ugot
 got = ugot.UGOT()
-got.initialize('192.168.1.183')
+got.initialize('192.168.1.103')
 got.open_camera()
 
 # Robot motion stubs
 def forward():
     print("Going forward")
-    got.mecanum_move_speed(0, 30)
+    got.spider_move_speed(0, 30)
 
 def backward():
     print("Going backward")
-    got.mecanum_move_speed(1, 30)
+    got.spider_move_speed(1, 30)
 
 def left():
     print("Going left")
-    got.mecanum_turn_speed(2, 45)
+    got.spider_turn_speed(2, 45)
 
 def right():
     print("Going right")
-    got.mecanum_turn_speed(3, 45)
+    got.spider_turn_speed(3, 45)
 
 def stop():
     print("Stopping")
-    got.mecanum_stop()
+    got.spider_stop()
 
 mp_hands = mp.solutions.hands
 mp_drawing = mp.solutions.drawing_utils

@@ -1,59 +1,46 @@
-import ollama
-from pypdf import PdfReader
+from ursina import *
 
-# Step 1: Load PDF
-def load_pdf_text(file_path):
-    reader = PdfReader(file_path)
-    text = ""
-    for page in reader.pages:
-        text += page.extract_text() + "\n"
-    return text
+app = Ursina()
 
-# Step 2: Chunk text (so it's not too long)
-def chunk_text(text, chunk_size=1000):
-    chunks = []
-    words = text.split()
-    for i in range(0, len(words), chunk_size):
-        chunk = " ".join(words[i:i+chunk_size])
-        chunks.append(chunk)
-    return chunks
+# Add a ground plane
+ground = Entity(
+    model='plane',
+    texture='grass',
+    collider='box',
+    scale=(10, 1, 10)
+)
 
-# Step 3: Ask Ollama a question about the text
-def ask_ollama(context_chunks, question):
-    # Combine chunks into one string for simplicity
-    context = "\n".join(context_chunks)
-    prompt = f"""
-    You are a helpful assistant. Use the following text to answer the question.
+cube = Entity(
+    model='cube',
+    color=color.orange,
+    texture="perlin_noise", # other textures: grass, brick, shore, arrow_right
+    # circle, circle_outline, radial_gradient, perlin_noise, rainbow
+    position=(0, 1, 0),
+    collider='box',
+    scale=(2,3,4)
+)
 
-    Text:
-    {context}
+# Add a light source and camera
+DirectionalLight().look_at((1, -1, 1))
+EditorCamera() # lets you move around with right mouse click
 
-    Question:
-    {question}
-    Answer in a short, clear sentence.
-    """
+def input(key):
+    if key == "left mouse down":
+        # Add a cube where the mouse points
+        hit_info = mouse.hovered_entity
+        if hit_info and hit_info.collider:
+            new_cube = Entity(
+                    model='cube',
+                    color=color.orange,
+                    texture="perlin_noise",
+                    position=hit_info.position + mouse.normal,
+                    collider='box',
+                    scale=(2,3,4)
+            )
 
-    response = ollama.chat(model="llama3.2", messages=[
-        {"role": "user", "content": prompt}
-    ])
+    if key == "right mouse down" and mouse.hovered_entity:
+        # Delete the cube we clicked on (but NOT the ground)
+        if mouse.hovered_entity != ground:
+            destroy(mouse.hovered_entity)
 
-    return response["message"]["content"]
-
-def main():
-    pdf_text = load_pdf_text("sheetresume.pdf")
-    chunks = chunk_text(pdf_text)
-
-    print("PDF loaded. Ask me anything! Type 'quit' to quit.\n")
-
-    while True:
-        question = input("Your question: ")
-        if question.lower() in {"quit", "exit"}:
-            print("Goodbye!")
-            break
-        print("Thinking...")
-        answer = ask_ollama(chunks, question)
-        print("Bot: ", answer)
-        print()
-
-if __name__ == "__main__":
-    main()
+app.run()

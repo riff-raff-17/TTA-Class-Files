@@ -77,9 +77,9 @@ def main():
                 break
 
             frame_ugot = got.read_camera_data()
-            if frame_ugot:
+            if frame_ugot is not None:
                 nparr = np.frombuffer(frame_ugot, np.uint8)
-                data = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+                data = cv2.imdecode(nparr,cv2.IMREAD_COLOR)
 
             frame_bgr = cv2.flip(frame_bgr, 1)
             frame_rgb = cv2.cvtColor(frame_bgr,  cv2.COLOR_BGR2RGB)
@@ -109,6 +109,8 @@ def main():
                     command = "left"
                 elif count == 4:
                     command = "right"
+            else:
+                command = "stop"
 
             now = time.time()
             if command:
@@ -131,7 +133,7 @@ def main():
             
             
             cv2.imshow("Hands", frame_bgr)
-            cv2.imshow("UGOT CAMERA", data)
+            cv2.imshow("UGOT", data)
             if cv2.waitKey(1) &0xFF == ord('q'):
                 break
 

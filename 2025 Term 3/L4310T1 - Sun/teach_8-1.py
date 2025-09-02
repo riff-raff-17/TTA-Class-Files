@@ -5,7 +5,6 @@ import mediapipe as mp
 from ugot import ugot
 got = ugot.UGOT()
 got.initialize('192.168.1.183')
-got.open_camera()
 
 # Robot motion stubs
 def forward():
@@ -76,11 +75,6 @@ def main():
             if not ok:
                 break
 
-            frame_ugot = got.read_camera_data()
-            if frame_ugot:
-                nparr = np.frombuffer(frame_ugot, np.uint8)
-                data = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-
             frame_bgr = cv2.flip(frame_bgr, 1)
             frame_rgb = cv2.cvtColor(frame_bgr,  cv2.COLOR_BGR2RGB)
             results = hands.process(frame_rgb)
@@ -109,6 +103,8 @@ def main():
                     command = "left"
                 elif count == 4:
                     command = "right"
+            else:
+                command = "stop"
 
             now = time.time()
             if command:
@@ -131,7 +127,6 @@ def main():
             
             
             cv2.imshow("Hands", frame_bgr)
-            cv2.imshow("UGOT CAMERA", data)
             if cv2.waitKey(1) &0xFF == ord('q'):
                 break
 
