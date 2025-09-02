@@ -7,23 +7,23 @@ got = ugot.UGOT()
 
 # ——— robot api stubs ———
 def forward():
-    print("Robot → forward")
+    print("Robot -> forward")
     got.mecanum_move_speed(0, 30)
 
 def backward():
-    print("Robot → backward")
+    print("Robot -> backward")
     got.mecanum_move_speed(1, 30)
 
 def turn_left():
-    print("Robot → left")
+    print("Robot -> left")
     got.mecanum_turn_speed(2, 30)
 
 def turn_right():
-    print("Robot → right")
+    print("Robot -> right")
     got.mecanum_turn_speed(3, 30)
 
 def stop():
-    print("Robot → stop")
+    print("Robot -> stop")
     got.mecanum_stop()
 
 # ————————————————————————————————————————————————
