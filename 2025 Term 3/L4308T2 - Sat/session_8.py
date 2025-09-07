@@ -34,7 +34,7 @@ def input(key):
                     color=color.orange,
                     texture="perlin_noise",
                     position=hit_info.position + mouse.normal,
-                    collider='box',
+                    collider='box', 
                     scale=(2,3,4)
             )
 
