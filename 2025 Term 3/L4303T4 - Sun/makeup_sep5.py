@@ -1,4 +1,4 @@
-'''Uses gymansium instead of gym'''
+'''Yisen makeup'''
 
 import os
 import pickle  # for catching UnpicklingError explicitly
