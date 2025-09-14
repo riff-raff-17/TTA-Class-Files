@@ -24,10 +24,10 @@ player.speed = 5
 
 # UI
 score = 0
-total_cubes = 3
+total_cubes = 100
 score_text = Text(text=f"Cubes: {score}/{total_cubes}", parent=camera.ui, 
                   position=(-0.02, 0.02), origin=(0, 0), world_scale=1)
-
+  
 cubes = []
 for _ in range(total_cubes):
     pos = Vec3(random.randint(-10, 10), 0.5, random.randint(-10, 10))

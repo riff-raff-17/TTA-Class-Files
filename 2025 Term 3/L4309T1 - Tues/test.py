@@ -1,374 +1,257 @@
-#!/usr/bin/env python3
-"""
-Simple Idle Clicker in Pygame
----------------------------------
-A tiny Cookie-Clicker-style game with:
-- Click the big button to earn cookies
-- Buy upgrades to increase cookies per click (CPC)
-- Buy autoclickers that generate cookies per second (CPS)
-- Save/Load to idle_save.json automatically on exit/start
-- Lightweight UI, no external assets
+# Pong vs Simple AI
+# Run: python pong_ai.py
+# Controls: W/S = Move (player is left paddle), P = Pause, R = Reset, Esc = Quit
+# Requires: pip install pygame
 
-Run:
-    pip install pygame
-    python idle_clicker.py
-
-Controls:
-    Left-click buttons to buy/activate
-    S key: Save
-    L key: Load
-    Esc or window close: Quit (auto-saves)
-"""
-import json
-import math
-import os
 import sys
-import time
-from dataclasses import dataclass, field
-from typing import Callable, Optional, Tuple
-
+import random
+import math
 import pygame
 
+# -----------------------------
+# Config
+# -----------------------------
+WIDTH, HEIGHT = 900, 540
+MARGIN = 20
+PADDLE_W, PADDLE_H = 14, 100
+BALL_SIZE = 14
+PLAYER_SPEED = 7
+AI_MAX_SPEED = 6
+BALL_SPEED = 6
+BALL_SPEED_MAX = 14
+FPS = 60
 
-# ----------------------------
-# Utility helpers
-# ----------------------------
-def fmt_num(n: float) -> str:
-    """Human-friendly number formatting."""
-    suffixes = ["", "K", "M", "B", "T", "Qa", "Qi", "Sx", "Sp", "Oc", "No", "De"]
-    if n < 1000:
-        return f"{n:.0f}"
-    k = 0
-    while n >= 1000 and k < len(suffixes) - 1:
-        n /= 1000.0
-        k += 1
-    if n >= 100:
-        return f"{n:.0f}{suffixes[k]}"
-    elif n >= 10:
-        return f"{n:.1f}{suffixes[k]}"
-    else:
-        return f"{n:.2f}{suffixes[k]}"
+# AI difficulty (0 = easy, 1 = medium, 2 = hard)
+DIFFICULTY = 1
 
+# Difficulty tuning
+AI_REACTION = [10, 6, 3][DIFFICULTY]    # frames between decisions
+AI_NOISE = [22, 12, 4][DIFFICULTY]      # vertical jitter range (px)
+AI_AIM_BIAS = [0.35, 0.2, 0.08][DIFFICULTY]  # how strongly AI aims for ball center (less = stronger)
+AI_SPEED = [AI_MAX_SPEED*0.8, AI_MAX_SPEED*0.95, AI_MAX_SPEED*1.05][DIFFICULTY]
 
-# ----------------------------
-# UI Components
-# ----------------------------
-WHITE = (255, 255, 255)
-BLACK = (0, 0, 0)
-GRAY = (60, 60, 60)
-LIGHT_GRAY = (90, 90, 90)
-GREEN = (70, 160, 90)
-RED = (190, 70, 70)
-BLUE = (80, 120, 200)
-YELLOW = (230, 200, 80)
+# Colors
+BG = (12, 14, 22)
+FG = (235, 235, 245)
+ACCENT = (120, 120, 140)
 
+pygame.init()
+pygame.display.set_caption("Pong vs AI")
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+clock = pygame.time.Clock()
+font = pygame.font.SysFont("consolas,menlo,monaco,monospace", 28)
+big_font = pygame.font.SysFont("consolas,menlo,monaco,monospace", 64)
 
-class Button:
-    def __init__(self, rect: pygame.Rect, text: str, font: pygame.font.Font,
-                 on_click: Optional[Callable] = None, tooltip: str = "",
-                 bg=LIGHT_GRAY, bg_hover=(110, 110, 110), fg=WHITE):
-        self.rect = pygame.Rect(rect)
-        self.text = text
-        self.font = font
-        self.on_click = on_click
-        self.tooltip = tooltip
-        self.bg = bg
-        self.bg_hover = bg_hover
-        self.fg = fg
-        self.enabled = True
+# -----------------------------
+# Entities
+# -----------------------------
+class Paddle:
+    def __init__(self, x, y):
+        self.rect = pygame.Rect(x, y, PADDLE_W, PADDLE_H)
+        self.speed = 0.0
 
-    def draw(self, surf: pygame.Surface, mouse_pos: Tuple[int, int]):
-        hovered = self.rect.collidepoint(mouse_pos)
-        color = self.bg_hover if (hovered and self.enabled) else self.bg
-        if not self.enabled:
-            color = (70, 70, 70)
-        pygame.draw.rect(surf, color, self.rect, border_radius=8)
-        # text
-        txt = self.font.render(self.text, True, self.fg if self.enabled else (160, 160, 160))
-        # Support multi-line with \n
-        if "\n" in self.text:
-            lines = self.text.split("\n")
-            total_h = sum(self.font.size(line)[1] for line in lines)
-            cur_y = self.rect.centery - total_h // 2
-            for line in lines:
-                line_surf = self.font.render(line, True, self.fg if self.enabled else (160, 160, 160))
-                surf.blit(line_surf, line_surf.get_rect(center=(self.rect.centerx, cur_y + line_surf.get_height() // 2)))
-                cur_y += line_surf.get_height()
+    def move(self, dy):
+        self.rect.y += int(dy)
+        if self.rect.top < MARGIN:
+            self.rect.top = MARGIN
+        if self.rect.bottom > HEIGHT - MARGIN:
+            self.rect.bottom = HEIGHT - MARGIN
+
+    def draw(self, surf):
+        pygame.draw.rect(surf, FG, self.rect, border_radius=6)
+
+class Ball:
+    def __init__(self):
+        self.rect = pygame.Rect(WIDTH//2 - BALL_SIZE//2, HEIGHT//2 - BALL_SIZE//2, BALL_SIZE, BALL_SIZE)
+        self.vx = 0.0
+        self.vy = 0.0
+
+    def reset(self, toward_left=None):
+        self.rect.center = (WIDTH//2, HEIGHT//2)
+        angle = random.uniform(-0.35*math.pi, 0.35*math.pi)
+        speed = BALL_SPEED * random.uniform(0.95, 1.05)
+        direction = -1 if (toward_left if toward_left is not None else random.choice([True, False])) else 1
+        self.vx = direction * speed * math.cos(angle)
+        self.vy = speed * math.sin(angle)
+
+    def update(self):
+        self.rect.x += int(self.vx)
+        self.rect.y += int(self.vy)
+
+        # Top/bottom walls
+        if self.rect.top <= MARGIN and self.vy < 0:
+            self.rect.top = MARGIN
+            self.vy *= -1
+        if self.rect.bottom >= HEIGHT - MARGIN and self.vy > 0:
+            self.rect.bottom = HEIGHT - MARGIN
+            self.vy *= -1
+
+    def draw(self, surf):
+        pygame.draw.rect(surf, FG, self.rect, border_radius=4)
+
+# -----------------------------
+# Helpers
+# -----------------------------
+def draw_center_line(surf):
+    dash_h = 16
+    gap = 16
+    x = WIDTH//2 - 2
+    y = MARGIN
+    while y < HEIGHT - MARGIN:
+        pygame.draw.rect(surf, ACCENT, (x, y, 4, dash_h), border_radius=2)
+        y += dash_h + gap
+
+def draw_hud(surf, p_score, ai_score, paused):
+    # Border margins
+    pygame.draw.rect(surf, ACCENT, (MARGIN-2, MARGIN-2, WIDTH-2*MARGIN+4, HEIGHT-2*MARGIN+4), 2, border_radius=12)
+
+    score_text = font.render(f"{p_score}   :   {ai_score}", True, FG)
+    surf.blit(score_text, (WIDTH//2 - score_text.get_width()//2, 10))
+
+    controls = font.render("W/S move • P pause • R reset • Esc quit", True, ACCENT)
+    surf.blit(controls, (WIDTH//2 - controls.get_width()//2, HEIGHT - controls.get_height() - 6))
+
+    if paused:
+        t = big_font.render("PAUSED", True, FG)
+        surf.blit(t, (WIDTH//2 - t.get_width()//2, HEIGHT//2 - t.get_height()//2 - 40))
+        s = font.render("Press P to resume", True, ACCENT)
+        surf.blit(s, (WIDTH//2 - s.get_width()//2, HEIGHT//2 - s.get_height()//2 + 20))
+
+def clamp_ball_speed(ball):
+    speed = math.hypot(ball.vx, ball.vy)
+    if speed > BALL_SPEED_MAX:
+        scale = BALL_SPEED_MAX / max(speed, 0.0001)
+        ball.vx *= scale
+        ball.vy *= scale
+
+def reflect_from_paddle(ball, paddle_rect):
+    # Compute hit position relative to paddle center to add spin
+    offset = ((ball.rect.centery - paddle_rect.centery) / (paddle_rect.height / 2))
+    offset = max(-1.25, min(1.25, offset))
+    speed = math.hypot(ball.vx, ball.vy) * 1.05 + 0.1
+
+    # Determine new angle based on offset (max ~50 degrees)
+    max_angle = math.radians(50)
+    angle = offset * max_angle
+    direction = -1 if ball.vx > 0 else 1  # bounce horizontally
+    ball.vx = direction * speed * math.cos(angle)
+    ball.vy = speed * math.sin(angle)
+    clamp_ball_speed(ball)
+
+def ai_target_y(ball, ai_rect):
+    # Very lightweight "prediction": if ball moving towards AI, project where it will cross AI x,
+    # accounting for top/bottom bounces. Otherwise, drift to center.
+    if ball.vx > 0:
+        # time to reach AI x
+        distance_x = (ai_rect.left - ball.rect.right)
+        if distance_x <= 0:
+            return ball.rect.centery
+        t = distance_x / max(ball.vx, 0.001)
+
+        # predict y with wall reflections
+        projected_y = ball.rect.centery + ball.vy * t
+        # mirror across top/bottom bounds to simulate bounces
+        top = MARGIN + BALL_SIZE//2
+        bottom = HEIGHT - MARGIN - BALL_SIZE//2
+        span = bottom - top
+        if span <= 0:
+            return ball.rect.centery
+
+        # Convert to triangle-wave via modular arithmetic
+        relative = (projected_y - top) % (2*span)
+        if relative > span:
+            projected_y = top + (2*span - relative)
         else:
-            surf.blit(txt, txt.get_rect(center=self.rect.center))
-        # border
-        pygame.draw.rect(surf, (30, 30, 30), self.rect, 2, border_radius=8)
-
-    def handle_event(self, event):
-        if not self.enabled:
-            return
-        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            if self.rect.collidepoint(event.pos):
-                if self.on_click:
-                    self.on_click()
-
-
-@dataclass
-class Upgrade:
-    name: str
-    base_cost: float
-    cost_scale: float
-    cps: float = 0.0        # cookies per second this upgrade adds (per unit)
-    cpc: float = 0.0        # cookies per click this upgrade adds (per unit)
-    owned: int = 0
-    color: Tuple[int, int, int] = field(default_factory=lambda: BLUE)
-
-    def current_cost(self) -> float:
-        return self.base_cost * (self.cost_scale ** self.owned)
-
-    def buy(self, cookies: float, n: int = 1) -> Tuple[bool, float]:
-        """Attempt to buy n units. Returns (purchased?, new_cookie_amount)."""
-        total_cost = 0.0
-        # Geometric series sum for cost over n units
-        for i in range(n):
-            total_cost += self.base_cost * (self.cost_scale ** (self.owned + i))
-        if cookies >= total_cost:
-            self.owned += n
-            return True, cookies - total_cost
-        return False, cookies
-
-
-# ----------------------------
-# Game
-# ----------------------------
-SAVE_PATH = "idle_save.json"
-
-
-class Game:
-    def __init__(self, width=900, height=600):
-        pygame.init()
-        pygame.display.set_caption("Tiny Idle Clicker")
-        self.W, self.H = width, height
-        self.screen = pygame.display.set_mode((self.W, self.H))
-        self.clock = pygame.time.Clock()
-
-        # Fonts
-        self.title_font = pygame.font.SysFont("arial", 28, bold=True)
-        self.ui_font = pygame.font.SysFont("arial", 20)
-        self.small_font = pygame.font.SysFont("arial", 16)
-
-        self.cookies = 0.0
-        self.cpc_base = 1.0  # base cookies per click
-        self.last_time = time.time()
-
-        # Upgrades (feel free to tweak numbers!)
-        self.upgrades = [
-            Upgrade("Autoclicker", base_cost=15, cost_scale=1.15, cps=0.1, color=GREEN),
-            Upgrade("Grandma", base_cost=100, cost_scale=1.15, cps=1.0, color=YELLOW),
-            Upgrade("Farm", base_cost=1100, cost_scale=1.15, cps=8.0, color=BLUE),
-            Upgrade("Mine", base_cost=12000, cost_scale=1.15, cps=47.0, color=RED),
-        ]
-        self.click_upgrades = [
-            Upgrade("Cursor+", base_cost=20, cost_scale=1.25, cpc=1.0, color=(120, 120, 220)),
-            Upgrade("Strong Finger", base_cost=200, cost_scale=1.25, cpc=5.0, color=(160, 120, 220)),
-        ]
-
-        # Buttons
-        self.buttons = []
-        self.make_buttons()
-
-        # Try autoload
-        self.load_game(auto=True)
-
-    # ----------------------------
-    # Derived stats
-    # ----------------------------
-    @property
-    def cpc(self) -> float:
-        """Cookies per click."""
-        return self.cpc_base + sum(u.cpc * u.owned for u in self.click_upgrades)
-
-    @property
-    def cps(self) -> float:
-        """Cookies per second."""
-        return sum(u.cps * u.owned for u in self.upgrades)
-
-    # ----------------------------
-    # Save/Load
-    # ----------------------------
-    def save_game(self):
-        data = {
-            "cookies": self.cookies,
-            "upgrades": [{"name": u.name, "owned": u.owned} for u in self.upgrades],
-            "click_upgrades": [{"name": u.name, "owned": u.owned} for u in self.click_upgrades],
-            "last_time": time.time(),
-        }
-        try:
-            with open(SAVE_PATH, "w") as f:
-                json.dump(data, f, indent=2)
-            return True
-        except Exception as e:
-            print("Save failed:", e)
-            return False
-
-    def load_game(self, auto=False):
-        if not os.path.exists(SAVE_PATH):
-            return False
-        try:
-            with open(SAVE_PATH, "r") as f:
-                data = json.load(f)
-            self.cookies = float(data.get("cookies", 0.0))
-            u_owned = {d["name"]: int(d["owned"]) for d in data.get("upgrades", [])}
-            cu_owned = {d["name"]: int(d["owned"]) for d in data.get("click_upgrades", [])}
-            for u in self.upgrades:
-                u.owned = u_owned.get(u.name, 0)
-            for u in self.click_upgrades:
-                u.owned = cu_owned.get(u.name, 0)
-            # Offline progress
-            last_time = float(data.get("last_time", time.time()))
-            offline_secs = max(0.0, time.time() - last_time)
-            gained = self.cps * offline_secs
-            if gained > 0:
-                self.cookies += gained
-            if not auto:
-                print(f"Loaded. Offline for {offline_secs:.0f}s, gained ~{fmt_num(gained)} cookies.")
-            return True
-        except Exception as e:
-            print("Load failed:", e)
-            return False
-
-    # ----------------------------
-    # UI
-    # ----------------------------
-    def make_buttons(self):
-        self.buttons = []
-
-        # Big click button
-        big_rect = pygame.Rect(40, 200, 240, 240)
-        self.big_click_btn = Button(
-            big_rect, "CLICK", self.title_font, on_click=self.handle_big_click, bg=(120, 90, 150),
-            tooltip="Click to get cookies!"
-        )
-        self.buttons.append(self.big_click_btn)
-
-        # Save / Load buttons
-        self.save_btn = Button(pygame.Rect(40, 470, 115, 40), "Save (S)", self.ui_font, on_click=self.save_game)
-        self.load_btn = Button(pygame.Rect(165, 470, 115, 40), "Load (L)", self.ui_font, on_click=self.load_game)
-        self.buttons += [self.save_btn, self.load_btn]
-
-        # Upgrade shop panels
-        # Auto (left of center)
-        self.auto_buttons = []
-        x, y = 320, 140
-        for i, u in enumerate(self.upgrades):
-            rect = pygame.Rect(x, y + i * 70, 260, 60)
-            btn = Button(rect, "", self.ui_font, on_click=lambda u=u: self.buy_upgrade(u))
-            btn.tooltip = f"+{u.cps} CPS"
-            self.auto_buttons.append(btn)
-            self.buttons.append(btn)
-
-        # Click upgrades (right side)
-        self.click_buttons = []
-        x2, y2 = 600, 140
-        for i, u in enumerate(self.click_upgrades):
-            rect = pygame.Rect(x2, y2 + i * 70, 260, 60)
-            btn = Button(rect, "", self.ui_font, on_click=lambda u=u: self.buy_upgrade(u))
-            btn.tooltip = f"+{u.cpc} CPC"
-            self.click_buttons.append(btn)
-            self.buttons.append(btn)
-
-    def handle_big_click(self):
-        self.cookies += self.cpc
-
-    def buy_upgrade(self, u: Upgrade):
-        purchased, new_amt = u.buy(self.cookies)
-        if purchased:
-            self.cookies = new_amt
-        # else not enough cookies; we could flash UI, but keeping it simple
-
-    # ----------------------------
-    # Main loop
-    # ----------------------------
-    def run(self):
-        running = True
-        while running:
-            dt = self.clock.tick(60) / 1000.0  # seconds
-            self.update(dt)
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    self.save_game()
-                    running = False
-                elif event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_ESCAPE:
-                        self.save_game()
-                        running = False
-                    elif event.key == pygame.K_s:
-                        self.save_game()
-                    elif event.key == pygame.K_l:
-                        self.load_game()
-                for b in self.buttons:
-                    b.handle_event(event)
-            self.draw()
-        pygame.quit()
-        sys.exit(0)
-
-    # ----------------------------
-    # Update & Draw
-    # ----------------------------
-    def update(self, dt: float):
-        # passive income
-        self.cookies += self.cps * dt
-        # enable/disable purchase buttons based on affordability
-        for btn, u in [(b, u) for b, u in zip(self.auto_buttons, self.upgrades)] + \
-                      [(b, u) for b, u in zip(self.click_buttons, self.click_upgrades)]:
-            btn.enabled = self.cookies >= u.current_cost()
-
-    def draw_panel(self, surf, rect, title):
-        pygame.draw.rect(surf, (40, 40, 40), rect, border_radius=10)
-        pygame.draw.rect(surf, (20, 20, 20), rect, 2, border_radius=10)
-        t = self.ui_font.render(title, True, WHITE)
-        surf.blit(t, (rect.x + 10, rect.y + 8))
-
-    def draw(self):
-        self.screen.fill((25, 25, 30))
-        mouse_pos = pygame.mouse.get_pos()
-
-        # Top header
-        header_rect = pygame.Rect(20, 20, self.W - 40, 90)
-        self.draw_panel(self.screen, header_rect, "Tiny Idle Clicker")
-        cookies_txt = self.title_font.render(f"Cookies: {fmt_num(self.cookies)}", True, YELLOW)
-        cps_txt = self.ui_font.render(f"CPS: {fmt_num(self.cps)}   |   CPC: {fmt_num(self.cpc)}", True, WHITE)
-        self.screen.blit(cookies_txt, (header_rect.x + 15, header_rect.y + 40))
-        self.screen.blit(cps_txt, (header_rect.x + 15, header_rect.y + 70))
-
-        # Big click button panel
-        left_rect = pygame.Rect(20, 120, 300, 400)
-        self.draw_panel(self.screen, left_rect, "Clicker")
-        self.big_click_btn.draw(self.screen, mouse_pos)
-
-        # Auto upgrades panel
-        center_rect = pygame.Rect(320, 120, 260, 400)
-        self.draw_panel(self.screen, center_rect, "Auto Upgrades (CPS)")
-        for btn, u in zip(self.auto_buttons, self.upgrades):
-            btn.text = f"{u.name} (x{u.owned})\nCost: {fmt_num(u.current_cost())}\n+{u.cps}/s each"
-            # draw color swatch
-            pygame.draw.rect(self.screen, u.color, (btn.rect.x + 8, btn.rect.y + 8, 10, btn.rect.h - 16), border_radius=3)
-            btn.draw(self.screen, mouse_pos)
-
-        # Click upgrades panel
-        right_rect = pygame.Rect(600, 120, 260, 400)
-        self.draw_panel(self.screen, right_rect, "Click Upgrades (CPC)")
-        for btn, u in zip(self.click_buttons, self.click_upgrades):
-            btn.text = f"{u.name} (x{u.owned})\nCost: {fmt_num(u.current_cost())}\n+{fmt_num(u.cpc)}/click each"
-            pygame.draw.rect(self.screen, u.color, (btn.rect.x + 8, btn.rect.y + 8, 10, btn.rect.h - 16), border_radius=3)
-            btn.draw(self.screen, mouse_pos)
-
-        # Footer
-        footer = self.small_font.render("Tip: S=Save, L=Load, Esc=Quit (auto-saves). Costs grow each purchase.", True, (200, 200, 200))
-        self.screen.blit(footer, (20, self.H - 24))
-
-        pygame.display.flip()
-
+            projected_y = top + relative
+        # add some imperfection
+        noise = random.uniform(-AI_NOISE, AI_NOISE)
+        aim = ai_rect.centery * AI_AIM_BIAS + projected_y * (1 - AI_AIM_BIAS) + noise
+        return aim
+    else:
+        return HEIGHT // 2
 
 def main():
-    game = Game()
-    game.run()
+    player = Paddle(MARGIN + 10, HEIGHT//2 - PADDLE_H//2)
+    ai = Paddle(WIDTH - MARGIN - 10 - PADDLE_W, HEIGHT//2 - PADDLE_H//2)
+    ball = Ball()
+    ball.reset(toward_left=random.choice([True, False]))
 
+    p_score = 0
+    ai_score = 0
+    paused = False
+    ai_timer = 0
+    ai_goal_y = ai.rect.centery
+
+    while True:
+        # --- Events
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    pygame.quit()
+                    sys.exit()
+                if event.key == pygame.K_p:
+                    paused = not paused
+                if event.key == pygame.K_r:
+                    p_score = ai_score = 0
+                    player.rect.centery = HEIGHT//2
+                    ai.rect.centery = HEIGHT//2
+                    ball.reset(toward_left=random.choice([True, False]))
+
+        # --- Update
+        keys = pygame.key.get_pressed()
+        if not paused:
+            dy = 0
+            if keys[pygame.K_w]:
+                dy -= PLAYER_SPEED
+            if keys[pygame.K_s]:
+                dy += PLAYER_SPEED
+            player.move(dy)
+
+            # AI logic
+            ai_timer -= 1
+            if ai_timer <= 0:
+                ai_goal_y = ai_target_y(ball, ai.rect)
+                ai_timer = AI_REACTION
+
+            # move AI towards goal
+            if ai.rect.centery < ai_goal_y - 4:
+                ai.move(AI_SPEED)
+            elif ai.rect.centery > ai_goal_y + 4:
+                ai.move(-AI_SPEED)
+
+            # Ball
+            ball.update()
+
+            # Collisions with paddles
+            if ball.rect.colliderect(player.rect) and ball.vx < 0:
+                ball.rect.left = player.rect.right
+                reflect_from_paddle(ball, player.rect)
+
+            if ball.rect.colliderect(ai.rect) and ball.vx > 0:
+                ball.rect.right = ai.rect.left
+                reflect_from_paddle(ball, ai.rect)
+
+            # Scoring
+            if ball.rect.left <= 0:
+                ai_score += 1
+                ball.reset(toward_left=False)
+            elif ball.rect.right >= WIDTH:
+                p_score += 1
+                ball.reset(toward_left=True)
+
+        # --- Draw
+        screen.fill(BG)
+        draw_center_line(screen)
+        draw_hud(screen, p_score, ai_score, paused)
+        player.draw(screen)
+        ai.draw(screen)
+        ball.draw(screen)
+
+        pygame.display.flip()
+        clock.tick(FPS)
 
 if __name__ == "__main__":
     main()
