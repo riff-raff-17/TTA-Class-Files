@@ -5,7 +5,7 @@ import numpy as np
 import mediapipe as mp
 from ugot import ugot
 got = ugot.UGOT()
-got.initialize('192.168.1.183')
+got.initialize('192.168.1.199')
 got.open_camera()
 
 # Robot motion stubs
