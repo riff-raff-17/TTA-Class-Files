@@ -3,7 +3,7 @@ import numpy as np
 from ugot import ugot
 
 got = ugot.UGOT()
-got.initialize('192.168.1.107')
+got.initialize('192.168.1.201')
 got.open_camera()
 
 # Speed ranges
@@ -14,8 +14,8 @@ def clamp(val, lo, hi):
     return max(lo, min(hi, val))
 
 def main():
-    move_speed = 30     # initial movement speed
-    turn_speed = 45     # initial turn speed
+    move_speed = 30 # initial movement speed
+    turn_speed = 45 # initial turn speed
 
     while True:
         frame = got.read_camera_data()
@@ -55,7 +55,7 @@ def main():
             break
 
         # --- arrow keys to adjust speeds ---
-        # In OpenCV, arrow keys typically map to:
+        # In OpenCV, arrow keys map to:
         # left=81, up=82, right=83, down=84 (after & 0xFF).
         if key == 0:  # Up arrow -> increase movement speed
             move_speed = clamp(move_speed + 5, MOVE_MIN, MOVE_MAX)

@@ -3,7 +3,7 @@ import numpy as np
 from ugot import ugot
 
 got = ugot.UGOT()
-got.initialize('192.168.88.1')
+got.initialize('192.168.1.201')
 got.open_camera()
 
 def main():
