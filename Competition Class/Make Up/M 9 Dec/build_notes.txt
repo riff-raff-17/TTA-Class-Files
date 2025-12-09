@@ -1,0 +1,176 @@
+------------- Part 1 -------------
+
+#include <iostream>
+#include <string>
+using namespace std;
+
+int main() {
+    cout << "===== WORDLE (C++ Console Version) =====\n";
+    cout << "Guess the word!\n";
+    return 0;
+}
+
+------------- Part 2 -------------
+
+const int WORD_LENGTH = 5;
+const int MAX_TRIES = 6;
+
+int main() {
+    string secret = "apple";
+
+    cout << "===== WORDLE (C++ Console Version) =====\n";
+    cout << "Guess the " << WORD_LENGTH << "-letter word in " << MAX_TRIES << " tries!\n\n";
+
+    for (int attempt = 1; attempt <= MAX_TRIES; ++attempt) {
+        string guess;
+        cout << "Try " << attempt << "/" << MAX_TRIES
+             << " - Enter a " << WORD_LENGTH << "-letter word: ";
+        cin >> guess;
+
+        cout << "You entered: " << guess << "\n\n";
+    }
+
+    return 0;
+}
+
+------------- Part 3 -------------
+
+if ((int)guess.size() != WORD_LENGTH) {
+    cout << "Please enter exactly " << WORD_LENGTH << " letters.\n\n";
+    --attempt; // don’t count this as a used try
+    continue;
+}
+
+------------- Part 4 -------------
+
+for (char &c : guess) {
+    c = static_cast<char>(tolower(static_cast<unsigned char>(c)));
+}
+
+cout << "Your guess: " << guess << endl;
+
+------------- Part 5 -------------
+string checkGuess(const string &secret, const string &guess) {
+    // TODO: implement
+    return "_____";
+}
+
+string feedback = checkGuess(secret, guess);
+
+
+------------- Part 6 -------------
+string checkGuess(const string &secret, const string &guess) {
+    string result(WORD_LENGTH, '_');
+    vector<int> usedSecret(WORD_LENGTH, 0);
+    vector<int> usedGuess(WORD_LENGTH, 0);
+
+    // First pass: exact matches (greens)
+    for (int i = 0; i < WORD_LENGTH; ++i) {
+        if (guess[i] == secret[i]) {
+            result[i] = 'G';
+            usedSecret[i] = 1;
+            usedGuess[i] = 1;
+        }
+    }
+
+    // Second pass: letters in word but wrong position (yellows)
+    for (int i = 0; i < WORD_LENGTH; ++i) {
+        if (usedGuess[i]) continue; // already green
+
+        for (int j = 0; j < WORD_LENGTH; ++j) {
+            if (!usedSecret[j] && guess[i] == secret[j]) {
+                result[i] = 'Y';
+                usedSecret[j] = 1;
+                usedGuess[i] = 1;
+                break;
+            }
+        }
+    }
+
+    return result;
+}
+
+------------- Part 7 -------------
+void printColoredTile(char letter, char resultCode) {
+    letter = static_cast<char>(toupper(static_cast<unsigned char>(letter)));
+
+    if (resultCode == 'G') {
+        // Green background, black text
+        cout << "\033[42m\033[30m " << letter << " \033[0m";
+    } else if (resultCode == 'Y') {
+        // Yellow background, black text
+        cout << "\033[43m\033[30m " << letter << " \033[0m";
+    } else {
+        // Gray/white background, black text
+        cout << "\033[47m\033[30m " << letter << " \033[0m";
+    }
+}
+
+// inside main:
+
+cout << "Feedback:   ";
+
+// Print colored tiles
+for (int i = 0; i < WORD_LENGTH; ++i) {
+    printColoredTile(guess[i], feedback[i]);
+}
+cout << endl;
+
+------------- Part 8 -------------
+bool green[26] = {false};
+bool yellow[26] = {false};
+
+for (int i = 0; i < WORD_LENGTH; ++i) {
+    char ch = guess[i];
+    if (ch < 'a' || ch > 'z') continue;
+    int idx = ch - 'a';
+
+    if (feedback[i] == 'G') {
+        green[idx] = true;      // green overrides yellow
+        yellow[idx] = false;
+    } else if (feedback[i] == 'Y') {
+        if (!green[idx]) {      // don’t downgrade green to yellow
+            yellow[idx] = true;
+        }
+    }
+}
+
+------------- Part 9 -------------
+
+void printKnownLetters(const bool green[26], const bool yellow[26]) {
+    string greenLetters;
+    string yellowLetters;
+
+    for (int i = 0; i < 26; ++i) {
+        char c = 'a' + i;
+        if (green[i]) {
+            greenLetters += c;
+            greenLetters += ' ';
+        }
+        if (yellow[i]) {
+            yellowLetters += c;
+            yellowLetters += ' ';
+        }
+    }
+
+    cout << "Known green letters:  ";
+    if (greenLetters.empty()) cout << "(none)";
+    else cout << greenLetters;
+    cout << endl;
+
+    cout << "Known yellow letters: ";
+    if (yellowLetters.empty()) cout << "(none)";
+    else cout << yellowLetters;
+    cout << endl << endl;
+}
+
+printKnownLetters(green, yellow);
+
+------------- Part 9 -------------
+if (guess == secret) {
+    cout << "🎉 You got it in " << attempt << " tries!" << endl;
+    return 0;
+}
+
+cout << "💀 Out of tries! The word was: " << secret << endl;
+return 0;
