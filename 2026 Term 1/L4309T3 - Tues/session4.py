@@ -1,35 +1,32 @@
 # imports
-import pygame
 import sys
+import pygame
 
-# Constants
-
-# Functions
 class Player:
     def __init__(self, pos):
         # Physics
         self.pos = pygame.Vector2(pos)
         self.vel = pygame.Vector2(0, 0)
 
-        # Ship orientation (degrees). 0 = pointing right.
-        self.angle = -90.0 # start pointing up
+        # Ship orientation (degrees). 0 = pointing right
+        self.angle = -90.0 # Start pointing up
 
         # Tuning
         self.turn_speed = 220.0 # degrees per second
         self.thrust_accel = 520.0 # pixels per second^2
-        self.max_speed = 420.0 # clamp velocity magnitude
-        self.damping = 0.995 # slight drift reduction per frame; 0.5% reduction per frame
+        self.max_speed = 420.0 # clamp velocity magnitude (pixels per second)
+        self.damping = 0.995 # slight drift reduction per frame
 
-        # Rendering / collision
-        self.radius = 16 # pixels
-    
+        # Rendering/Collision
+        self.radius = 16
+
     def update(self, dt, keys, screen_size):
         # Rotation
         if keys[pygame.K_LEFT] or keys[pygame.K_a]:
             self.angle -= self.turn_speed * dt
         if keys[pygame.K_RIGHT] or keys[pygame.K_d]:
             self.angle += self.turn_speed * dt
-        
+
         # Thrust (acceleration in facing direction)
         if keys[pygame.K_UP] or keys[pygame.K_w]:
             forward = pygame.Vector2(1, 0).rotate(self.angle)
@@ -39,28 +36,36 @@ class Player:
         if self.vel.length() > self.max_speed:
             self.vel.scale_to_length(self.max_speed)
 
-        # Move
+        # Move 
         self.pos += self.vel * dt
 
-        # Mild damping to keep things controllable 
+        # Mild damping to keep things controllable (can reduce/remove later)
         self.vel *= self.damping
 
         # Screen wrap
         w, h = screen_size
+
+        # Width
         if self.pos.x < 0:
             self.pos.x += w
         elif self.pos.x >= w:
             self.pos.x -= w
-        
+
+        # Height
         if self.pos.y < 0:
             self.pos.y += h
         elif self.pos.y >= h:
             self.pos.y -= h
-        
+
+    def _ship_points(self):
+        """
+        Returns 3 points (triangle) in world space.
+        We'll draw a simple triangle ship.
+        """
+        pass
 
 class Game:
-    # always start with self!
-    def __init__(self, width=800, height=450, caption="Pygame OOP"):
+    def __init__(self, width=800, height=450, caption="Pygame OOP Skeleton"):
         pygame.init()
 
         self.width = width
@@ -70,44 +75,40 @@ class Game:
         self.clock = pygame.time.Clock()
         self.running = True
 
-        # We'll use dt (delta time) in later sessions for smooth movement
+        # We'll use dt (delta time) in later sessions for smooth movement.
         self.dt = 0.0
 
     def run(self):
         """Main game loop"""
         while self.running:
             # dt in seconds (e.g., 0.016 at ~60 FPS)
-            # dt is also called frametime
             self.dt = self.clock.tick(60) / 1000.0
 
-            # 1. Handle events (inputs)
             self.handle_events()
-            # 2. Update all objects
             self.update(self.dt)
-            # 3. Draw frame
             self.draw()
 
         self.quit()
 
     def handle_events(self):
-        """Handle all events (inputs)"""
+        """Handle all input/events"""
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False
-            
+
             elif event.type == pygame.KEYDOWN:
-                if event.key in {pygame.K_ESCAPE, pygame.K_q}:
+                if event.key == pygame.K_ESCAPE:
                     self.running = False
 
     def update(self, dt):
-        """Update game state. (Nothing yet here)"""
+        """Update game state. (Nothing here yet)"""
         pass
 
     def draw(self):
         """Draw everything each frame"""
-        self.screen.fill((25, 25, 35)) # Background color
+        self.screen.fill((25, 25, 35))
 
-        # In later sessions we'll draw entities here.
+        # In later session we'll draw entities here.
 
         pygame.display.flip()
 
@@ -115,13 +116,11 @@ class Game:
         """Clean shutdown"""
         pygame.quit()
         sys.exit()
-        
 
-# Main loop
+# main loop
 def main():
-    game = Game()
-    game.run()
+    Game().run()
 
-# Script entry point
+# script entry point
 if __name__ == "__main__":
     main()
