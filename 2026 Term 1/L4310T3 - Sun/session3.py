@@ -65,6 +65,22 @@ class Player:
         # Define ship triangle in local space (pointing right),
         # then rotate by angle and translate by pos
         tip = pygame.Vector2(self.radius, 0)
+        left = pygame.Vector2(-self.radius * 0.8, self.radius * 0.6)
+        right = pygame.Vector2(-self.radius * 0.8, -self.radius * 0.6)
+
+        pts = [tip, left, right]
+        return [p.rotate(self.angle) + self.pos for p in pts]
+    
+    def draw(self, surface):
+        pygame.draw.polygon(surface, (220, 220, 240), 
+                            self._ship_points(), width=2)
+        
+        # Optional: draw a tiny center dot (helps see pos)
+        pygame.draw.circle(surface, (220, 220, 240),
+                           (int(self.pos.x), int(self.pos.y)), width=2)
+        
+    def get_collision_circle(self):
+        return self.pos, float(self.radius)
 
 class Game:
     # always start with self!
@@ -80,6 +96,9 @@ class Game:
 
         # We'll use dt (delta time) in later sessions for smooth movement
         self.dt = 0.0
+
+        # center spawn ship
+        self.player = Player((self.width / 2, self.height / 2))
 
     def run(self):
         """Main game loop"""
@@ -108,14 +127,16 @@ class Game:
                     self.running = False
 
     def update(self, dt):
-        """Update game state. (Nothing yet here)"""
-        pass
+        """Update game state."""
+        keys = pygame.key.get_pressed()
+        self.player.update(dt, keys, (self.width, self.height))
 
     def draw(self):
         """Draw everything each frame"""
         self.screen.fill((25, 25, 35)) # Background color
 
         # In later sessions we'll draw entities here.
+        self.player.draw(self.screen)
 
         pygame.display.flip()
 
@@ -124,7 +145,6 @@ class Game:
         pygame.quit()
         sys.exit()
         
-
 # Main loop
 def main():
     game = Game()
