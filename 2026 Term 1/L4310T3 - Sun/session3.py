@@ -57,6 +57,14 @@ class Player:
         elif self.pos.y >= h:
             self.pos.y -= h
         
+    def _ship_points(self):
+        """
+        Returns 3 points (triangle) in world space.
+        We'll draw a simple simple triangle ship
+        """
+        # Define ship triangle in local space (pointing right),
+        # then rotate by angle and translate by pos
+        tip = pygame.Vector2(self.radius, 0)
 
 class Game:
     # always start with self!
