@@ -2,9 +2,38 @@
 import pygame
 import sys
 
-# Constants
-
 # Functions
+class Bullet:
+    def __init__(self, pos, vel, lifetime=1.2):
+        self.pos = pygame.Vector2(pos)
+        self.vel = pygame.Vector2(vel)
+        self.lifetime = lifetime
+        self.radius = 3
+
+    def update(self, dt, screen_size):
+        self.pos = self.vel * dt
+        self.lifetime -= dt
+
+        w, h = screen_size
+        if self.pos.x < 0:
+            self.pos.x += w
+        elif self.pos.x >= w:
+            self.pos.x -= w
+        
+        if self.pos.y < 0:
+            self.pos.y += h
+        elif self.pos.y >= h:
+            self.pos.y -= h
+
+        return self.lifetime > 0
+    
+    def draw(self, surface):
+        pygame.draw.circle(surface, (220, 240, 120),
+                           (int(self.pos.x), int(self.pos.y)), self.radius)
+    
+    def get_collision_circle(self):
+        return self.pos, float(self.radius)
+
 class Player:
     def __init__(self, pos):
         # Physics
@@ -22,8 +51,15 @@ class Player:
 
         # Rendering / collision
         self.radius = 16 # pixels
+
+        # Shooting
+        self.fire_cooldown = 0.18
+        self._fire_timer = 0.0
+        self.bullet_speed = 650.0 # pixels per second
+        self.bullet_spawn_offset = self.radius + 4
     
     def update(self, dt, keys, screen_size):
+        self._fire_timer = max(0.0, self._fire_timer - dt)
         # Rotation
         if keys[pygame.K_LEFT] or keys[pygame.K_a]:
             self.angle -= self.turn_speed * dt
@@ -56,6 +92,17 @@ class Player:
             self.pos.y += h
         elif self.pos.y >= h:
             self.pos.y -= h
+
+    def try_fire(self):
+        if self._fire_timer > 0.0:
+            return None
+        
+        forward = pygame.Vector2(1, 0).rotate(self.angle)
+        spawn_pos = self.pos + forward * self.bullet_spawn_offset
+        bullet_vel = self.vel + forward * self.bullet_speed
+
+        self._fire_timer = self.fire_cooldown
+        return Bullet(spawn_pos, bullet_vel)
         
     def _ship_points(self):
         """
@@ -77,7 +124,7 @@ class Player:
         
         # Optional: draw a tiny center dot (helps see pos)
         pygame.draw.circle(surface, (220, 220, 240),
-                           (int(self.pos.x), int(self.pos.y)), width=2)
+                           (int(self.pos.x), int(self.pos.y)), 2)
         
     def get_collision_circle(self):
         return self.pos, float(self.radius)
