@@ -1,5 +1,48 @@
 import sys
 import pygame
+import random
+
+def circles_collide(pos_a, r_a, pos_b, r_b):
+    # circle-circle collision using squared distance
+    return pos_a.distance_squared_to(pos_b) <= (r_a + r_b) ** 2
+
+class Asteroid:
+    SIZES = {
+        "big" : 40,
+        "medium" : 26,
+        "small" : 16
+    }
+
+    def __init__(self, pos, vel, size_name="big"):
+        self.pos = pygame.Vector2(pos)
+        self.vel = pygame.Vector2(vel)
+        self.size_name = size_name
+        self.radius = self.SIZES[size_name]
+
+        # Optional: small spin for visual interest
+        self.angle = random.uniform(0, 360)
+        self.spin = random.uniform(-90, 90) # degrees per second
+
+    def update(self, dt, screen_size):
+        self.pos += self.vel * dt
+        self.angle = (self.angle + self.spin * dt) % 360
+
+        w, h = screen_size
+        if self.pos.x < 0:
+            self.pos.x += w
+        elif self.pos.x >= w:
+            self.pos.x -= w
+
+        if self.pos.y < 0:
+            self.pos.y += h
+        elif self.pos.y >= h:
+            self.pos.y -= h
+
+    def draw(self, surface):
+        # Draw a simple "rock"
+        pygame.draw.circle(surface=surface, color=(160, 160, 170),
+                           center=(int(self.pos.x), int(self.pos.y)), 
+                           radius=int(self.radius), width=2)
 
 class Bullet:
     def __init__(self, pos, vel, lifetime=1.2):
@@ -26,9 +69,9 @@ class Bullet:
         return self.lifetime > 0
 
     def draw(self, surface):
-        pygame.draw.circle(surface, (255, 240, 120),
-                           (int(self.pos.x), int(self.pos.y)), self.radius)
-
+        pygame.draw.circle(surface=surface, color=(255, 240, 120),
+                           center=(int(self.pos.x), int(self.pos.y)), radius=self.radius)
+        
     def get_collision_circle(self):
         return self.pos, float(self.radius)
 
@@ -58,7 +101,6 @@ class Player:
 
     def update(self, dt, keys, screen_size):
         self._fire_timer = max(0.0, self._fire_timer - dt)
-
         # Rotation
         if keys[pygame.K_LEFT] or keys[pygame.K_a]:
             self.angle -= self.turn_speed * dt
@@ -95,7 +137,7 @@ class Player:
     def try_fire(self):
         if self._fire_timer > 0.0:
             return None
-
+        
         forward = pygame.Vector2(1, 0).rotate(self.angle)
         spawn_pos = self.pos + forward * self.bullet_spawn_offset
         bullet_vel = self.vel + forward * self.bullet_speed
@@ -171,7 +213,6 @@ class Game:
         keys = pygame.key.get_pressed()
         self.player.update(dt, keys, (self.width, self.height))
 
-        # hold SPACE to fire continuously
         if keys[pygame.K_SPACE]:
             bullet = self.player.try_fire()
             if bullet is not None:

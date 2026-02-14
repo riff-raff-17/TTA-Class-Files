@@ -1,6 +1,28 @@
 import sys
 import pygame
 
+class Bullet:
+    def __init__(self, pos, vel, lifetime=1.2):
+        self.pos = pygame.Vector2(pos)
+        self.vel = pygame.Vector2(vel)
+        self.lifetime = lifetime
+        self.radius = 3
+
+    def update(self, dt, screen_size):
+        self.pos += self.vel * dt
+        self.lifetime -= dt
+
+        w, h = screen_size
+        if self.pos.x < 0:
+            self.pos.x += w
+        elif self.pos.x >= w:
+            self.pos.x -= w
+        
+        if self.pos.y < 0:
+            self.pos.y += h
+        elif self.pos.y >= h:
+            self.pos.y -= h
+
 class Player:
     def __init__(self, pos):
         # Physics
