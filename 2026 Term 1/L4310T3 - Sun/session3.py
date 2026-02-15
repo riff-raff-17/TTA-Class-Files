@@ -221,6 +221,8 @@ class Game:
         else:
             pos = pygame.Vector2(w + 10, random.uniform(0, h))
 
+        
+
     def run(self):
         """Main game loop"""
         while self.running:
