@@ -1,8 +1,61 @@
 # imports
 import pygame
 import sys
+import random
 
 # Functions
+def circles_collide(pos_a, r_a, pos_b, r_b):
+    # Circle-circle collision using squared distance
+    return pos_a.distance_squared_to(pos_b) <= (r_a + r_b) ** 2
+
+class Asteroid:
+    # Simple size tiers
+    SIZES = {
+        "big" : 40,
+        "medium" : 26,
+        "small" : 16
+    }
+
+    def __init__(self, pos, vel, size_name="big"):
+        self.pos = pygame.Vector2(pos)
+        self.vel = pygame.Vector2(vel)
+        self.size_name = size_name
+        self.radius = self.SIZES[size_name]
+
+        # Optional: small spin for visual interest
+        self.angle = random.uniform(0, 360)
+        self.spin = random.uniform(-90, 90) # degrees per second
+
+    def update(self, dt, screen_size):
+        self.pos += self.vel * dt
+        self.angle = (self.angle + self.spin * dt) % 360
+
+        w, h = screen_size
+        if self.pos.x < 0:
+            self.pos.x += w
+        elif self.pos.x >= w:
+            self.pos.x -= w
+        
+        if self.pos.y < 0:
+            self.pos.y += h
+        elif self.pos.y >= h:
+            self.pos.y -= h
+
+    def draw(self, surface):
+        # We'll draw a simple "rock" as a circle for now
+        pygame.draw.circle(surface, (160, 160, 170),
+                           (int(self.pos.x), int(self.pos.y)), 
+                           int(self.radius), 2)
+        
+        # Tiny line showing rotation
+        tip = pygame.Vector2(self.radius, 0).rotate(self.angle) + self.pos
+        pygame.draw.line(surface, (160, 160, 170),
+                           (int(self.pos.x), int(self.pos.y)), 
+                           (int(tip.x), int(tip.y)), 2)
+        
+    def get_collision_circle(self):
+        return self.pos, float(self.radius)
+
 class Bullet:
     def __init__(self, pos, vel, lifetime=1.2):
         self.pos = pygame.Vector2(pos)
@@ -147,6 +200,26 @@ class Game:
         # center spawn ship
         self.player = Player((self.width / 2, self.height / 2))
         self.bullets = []
+
+        self.asteroids = []
+        self.target_asteroids = 5
+
+        for _ in range(self.target_asteroids):
+            self.spawn_asteroid(size_name="big")
+
+    def spawn_asteroid(self, size_name="big"):
+        # Spawn along a random edge so we don't instantly collide in the center
+        w, h = self.width, self.height
+        edge = random.choice(["top", "bottom", "left", "right"])
+
+        if edge == "top":
+            pos = pygame.Vector2(random.uniform(0, w), -10)
+        elif edge == "bottom":
+            pos = pygame.Vector2(random.uniform(0, w), h + 10)
+        elif edge == "left":
+            pos = pygame.Vector2(-10, random.uniform(0, h))
+        else:
+            pos = pygame.Vector2(w + 10, random.uniform(0, h))
 
     def run(self):
         """Main game loop"""
