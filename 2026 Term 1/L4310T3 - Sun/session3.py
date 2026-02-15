@@ -11,7 +11,7 @@ class Bullet:
         self.radius = 3
 
     def update(self, dt, screen_size):
-        self.pos = self.vel * dt
+        self.pos += self.vel * dt
         self.lifetime -= dt
 
         w, h = screen_size
@@ -146,6 +146,7 @@ class Game:
 
         # center spawn ship
         self.player = Player((self.width / 2, self.height / 2))
+        self.bullets = []
 
     def run(self):
         """Main game loop"""
@@ -178,9 +179,24 @@ class Game:
         keys = pygame.key.get_pressed()
         self.player.update(dt, keys, (self.width, self.height))
 
+        # NEW: hold SPACE to fire continuously
+        if keys[pygame.K_SPACE]:
+            bullet = self.player.try_fire()
+            if bullet is not None:
+                self.bullets.append(bullet)
+
+        alive = []
+        for b in self.bullets:
+            if b.update(dt, (self.width, self.height)):
+                alive.append(b)
+        self.bullets = alive
+
     def draw(self):
         """Draw everything each frame"""
         self.screen.fill((25, 25, 35)) # Background color
+
+        for b in self.bullets:
+            b.draw(self.screen)
 
         # In later sessions we'll draw entities here.
         self.player.draw(self.screen)
