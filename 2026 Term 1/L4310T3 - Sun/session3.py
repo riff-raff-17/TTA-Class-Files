@@ -207,6 +207,9 @@ class Game:
         for _ in range(self.target_asteroids):
             self.spawn_asteroid(size_name="big")
 
+        # simple game state
+        self.game_over = False
+
     def spawn_asteroid(self, size_name="big"):
         # Spawn along a random edge so we don't instantly collide in the center
         w, h = self.width, self.height
@@ -221,7 +224,20 @@ class Game:
         else:
             pos = pygame.Vector2(w + 10, random.uniform(0, h))
 
-        
+        # Random drift velocity
+        speed = random.uniform(60, 140) # speed in pixels per second
+        direction = pygame.Vector2(1, 0).rotate(random.uniform(0, 360))
+        vel = direction * speed
+
+        self.asteroids.append(Asteroid(pos, vel, size_name=size_name))
+
+    def reset(self):
+        self.player = Player((self.width / 2, self.height / 2))
+        self.bullets = []
+        self.asteroids = []
+        self.game_over = False
+        for _ in range(self.target_asteroids):
+            self.spawn_asteroid(size_name="big")
 
     def run(self):
         """Main game loop"""
@@ -249,8 +265,14 @@ class Game:
                 if event.key in {pygame.K_ESCAPE, pygame.K_q}:
                     self.running = False
 
+                if event.key == pygame.K_r and self.game_over:
+                    self.reset
+
     def update(self, dt):
         """Update game state."""
+        if self.game_over:
+            return
+
         keys = pygame.key.get_pressed()
         self.player.update(dt, keys, (self.width, self.height))
 
@@ -265,6 +287,33 @@ class Game:
             if b.update(dt, (self.width, self.height)):
                 alive.append(b)
         self.bullets = alive
+
+        # Update asteroids
+        for a in self.asteroids:
+            a.update(dt, (self.width, self.height))
+
+        # Keep asteroid count up (simple spawn system)
+        while len(self.asteroids) < self.target_asteroids:
+            self.spawn_asteroid(size_name="big")
+
+        # Collisions: bullets vs asteroids
+        bullets_to_remove = set()
+        asteroids_to_remove = set()
+
+        for bi, b in enumerate(self.bullets):
+            bpos, br = b.get_collision_circle()
+            for ai, a in enumerate(self.asteroids):
+                apos, ar = a.get_collision_circle()
+                if circles_collide(bpos, br, apos, ar):
+                    bullets_to_remove.add(bi)
+                    asteroids_to_remove.add(ai)
+                    break
+
+        if bullets_to_remove or asteroids_to_remove:
+            self.bullets = [b for i, b in enumerate(self.bullets) if i not in bullets_to_remove]
+            self.asteroids = [a for i, a in enumerate(self.asteroids) if i not in asteroids_to_remove]
+
+        # Collisions: player vs asteroids
 
     def draw(self):
         """Draw everything each frame"""

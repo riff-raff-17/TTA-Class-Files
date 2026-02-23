@@ -47,7 +47,7 @@ class Asteroid:
         
         # Tiny line showing rotation
         tip = pygame.Vector2(self.radius, 0).rotate(self.angle) + self.pos
-        pygame.draw.line(surface=surface, color=(160, 160, 170), 
+        pygame.draw.line(surface=surface, color=(160, 160, 170),
                          start_pos=(int(self.pos.x), int(self.pos.y)),
                          end_pos=(int(tip.x), int(tip.y)), width=2)
         
@@ -108,7 +108,7 @@ class Player:
         self._fire_timer = 0.0
         self.bullet_speed = 650.0
         self.bullet_spawn_offset = self.radius + 4
-
+    
     def update(self, dt, keys, screen_size):
         self._fire_timer = max(0.0, self._fire_timer - dt)
 
@@ -222,7 +222,7 @@ class Game:
             pos = pygame.Vector2(random.uniform(0, w), h + 10)
         elif edge == "left":
             pos = pygame.Vector2(-10, random.uniform(0, h))
-        elif edge == "right":
+        else:
             pos = pygame.Vector2(w + 10, random.uniform(0, h))
 
         # Random drift velocity
@@ -283,6 +283,8 @@ class Game:
             if b.update(dt, (self.width, self.height)):
                 alive.append(b)
         self.bullets = alive
+
+        
 
     def draw(self):
         """Draw everything each frame."""
