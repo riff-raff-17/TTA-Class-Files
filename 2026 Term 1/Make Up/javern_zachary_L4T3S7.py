@@ -8,15 +8,15 @@ def main():
     board = chess.Board()
 
     # Start the engine
-    engine = chess.engine.SimpleEngine.popen_uci(STOCKFISH_PATH)
+    engine = chess.engine.SimpleEngine.open_uci(STOCKFISH_PATH)
 
-    # Set Stockfish skill level (0–20)
+    # Set Stockfish skill level (0-20)
     try:
         engine.configure({"Skill Level": 5})
     except chess.engine.EngineError:
         pass
 
-    print("Welcome! You are White. Enter moves in SAN (e.g. e4, Nf3, exd5, O-O).")
+    print("Welcome! You are White. Enter moves in SAN (e.g. e4, Nf3, exd5, 0-0).")
     print("Type 'quit' to exit.\n")
 
     while not board.is_game_over():
@@ -28,7 +28,7 @@ def main():
         move_san = input("Your move: ").strip()
         if move_san.lower() in ["quit", "exit"]:
             break
-
+    
         try:
             move = board.parse_san(move_san)
         except ValueError:
@@ -45,8 +45,7 @@ def main():
         # Limit the engine either by time or by depth
         result = engine.play(board, chess.engine.Limit(time=0.5))
         board.push(result.move)
-        print("Engine plays:", board.san(result.move), "\n")
-
+    
     print(board)
     print("Game over:", board.result(), "-", board.outcome())
     engine.quit()
