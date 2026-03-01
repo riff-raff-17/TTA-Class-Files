@@ -11,7 +11,7 @@ class Asteroid:
     SIZES = {
         "big" : 40,
         "medium" : 26,
-        "small" : 16
+        "small" : 16,
     }
 
     def __init__(self, pos, vel, size_name="big"):
@@ -108,7 +108,7 @@ class Player:
         self._fire_timer = 0.0
         self.bullet_speed = 650.0
         self.bullet_spawn_offset = self.radius + 4
-    
+
     def update(self, dt, keys, screen_size):
         self._fire_timer = max(0.0, self._fire_timer - dt)
 
@@ -334,7 +334,10 @@ class Game:
             hint = pygame.font.Font(None, 28).render("Press R to restart", True, (220, 220, 220))
 
             rect = text.get_rect(center=(self.width / 2, self.height / 2 - 20))
+            rect2 = hint.get_rect(center=(self.width / 2, self.height / 2 + 20))
 
+            self.screen.blit(text, rect)
+            self.screen.blit(hint, rect2)
 
         pygame.display.flip()
 

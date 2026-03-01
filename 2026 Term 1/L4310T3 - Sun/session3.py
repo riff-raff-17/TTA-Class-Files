@@ -13,7 +13,7 @@ class Asteroid:
     SIZES = {
         "big" : 40,
         "medium" : 26,
-        "small" : 16
+        "small" : 16,
     }
 
     def __init__(self, pos, vel, size_name="big"):
@@ -314,15 +314,23 @@ class Game:
             self.asteroids = [a for i, a in enumerate(self.asteroids) if i not in asteroids_to_remove]
 
         # Collisions: player vs asteroids
+        ppos, pr = self.player.get_collision_circle()
+        for a in self.asteroids:
+            apos, ar = a.get_collision_circle()
+            if circles_collide(ppos, pr, apos, ar):
+                self.game_over = True
+                break
 
     def draw(self):
         """Draw everything each frame"""
         self.screen.fill((25, 25, 35)) # Background color
 
+        for a in self.asteroids:
+            a.draw(self.screen)
+
         for b in self.bullets:
             b.draw(self.screen)
 
-        # In later sessions we'll draw entities here.
         self.player.draw(self.screen)
 
         pygame.display.flip()
