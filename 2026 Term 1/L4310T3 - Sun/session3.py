@@ -106,7 +106,7 @@ class Player:
         self.radius = 16 # pixels
 
         # Shooting
-        self.fire_cooldown = 0.18
+        self.fire_cooldown = 0.08
         self._fire_timer = 0.0
         self.bullet_speed = 650.0 # pixels per second
         self.bullet_spawn_offset = self.radius + 4
@@ -194,6 +194,8 @@ class Game:
         self.clock = pygame.time.Clock()
         self.running = True
 
+        self.font = pygame.font.Font(None, 48)
+
         # We'll use dt (delta time) in later sessions for smooth movement
         self.dt = 0.0
 
@@ -266,7 +268,7 @@ class Game:
                     self.running = False
 
                 if event.key == pygame.K_r and self.game_over:
-                    self.reset
+                    self.reset()
 
     def update(self, dt):
         """Update game state."""
@@ -332,6 +334,26 @@ class Game:
             b.draw(self.screen)
 
         self.player.draw(self.screen)
+
+        if self.game_over:
+            text = self.font.render("GAME OVER", True, (240, 80, 80))
+            hint = pygame.font.Font(None, 28).render("Press R to restart", True, (220, 220, 220))
+
+            rect = text.get_rect(center=(self.width / 2, self.height / 2 - 20))
+            rect2 = hint.get_rect(center=(self.width / 2, self.height / 2 + 40))
+
+            # Create a rectangle for the background box (optional)
+            padding = 20
+            box_rect = rect.inflate(padding * 2, padding * 2)
+
+            # Draw filled rectangle (background box)
+            pygame.draw.rect(self.screen, (40, 40, 40), box_rect)
+            # Optional: draw border around the box
+            pygame.draw.rect(self.screen, (240, 80, 80), box_rect, 3)
+
+            # Draw the tex on top
+            self.screen.blit(text, rect)
+            self.screen.blit(hint, rect2)
 
         pygame.display.flip()
 

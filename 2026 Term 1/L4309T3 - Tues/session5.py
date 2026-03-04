@@ -49,9 +49,33 @@ class Asteroid:
         pygame.draw.line(surface=surface, color=(160, 160, 170),
                          start_pos=(int(self.pos.x), int(self.pos.y)),
                          end_pos=(int(tip.x), int(tip.y)), width=2)
-        
+
     def get_collision_circle(self):
         return self.pos, float(self.radius)
+    
+    def split(self):
+        """
+        Returns a list of new Asteroid objects (children).
+        big -> 2 medium
+        medium -> 2 small
+        small -> []
+        """
+        if self.size_name == "small":
+            return []
+
+        next_size = "medium" if self.size_name == "big" else "small"
+
+        children = []
+        for _ in range(2):
+            # Give each child a new direction/speed "kick"
+            direction = pygame.Vector2(1, 0).rotate(random.uniform(0, 360))
+            speed = random.uniform(120, 220) if next_size == "small" else random.uniform(90, 170)
+
+            # Children inherit some of the parent's velocity too
+            child_vel = self.vel * 0.4 + direction * speed
+            children.append(Asteroid(self.pos, child_vel, size_name=next_size))
+
+        return children
 
 class Bullet:
     def __init__(self, pos, vel, lifetime=1.2):
@@ -193,18 +217,31 @@ class Game:
         self.running = True
         self.dt = 0.0
 
+        self.font = pygame.font.Font(None, 48)
+
         self.player = Player((self.width / 2, self.height / 2))
         self.bullets = []
-
         self.asteroids = []
-        self.target_asteroids = 5
-
-        # Spawn a starting set
-        for _ in range(self.target_asteroids):
-            self.spawn_asteroid(size_name="big")
 
         # Simple game state
         self.game_over = False
+
+        # scoring + lives + waves
+        self.score = 0
+        self.lives = 3
+        self.wave = 1
+
+        # Invulnerability after getting hit
+        self.invuln_time = 2.0
+        self.invuln_timer = 0.0
+
+        self.start_wave()
+
+    def start_wave(self):
+        # Spawn more big asteroids each wave
+        count = 4 + self.wave * 2 # wave 1 -> 6 asteroids, wave 2 -> 8, ...
+        for _ in range(count):
+            self.spawn_asteroid(size_name="big")
 
     def spawn_asteroid(self, size_name="big"):
         # Spawn along a random edge so we don't instantly collide in the center
@@ -221,7 +258,7 @@ class Game:
             pos = pygame.Vector2(w + 10, random.uniform(0, h))
 
         # Random drift velocity
-        speed = random.uniform(60, 140)
+        speed = random.uniform(60, 140) + (self.wave - 1) * 6
         direction = pygame.Vector2(1, 0).rotate(random.uniform(0, 360))
         vel = direction * speed
 
@@ -330,6 +367,19 @@ class Game:
             rect = text.get_rect(center=(self.width / 2, self.height / 2 - 20))
             rect2 = hint.get_rect(center=(self.width / 2, self.height / 2 + 20))
 
+            # Create a slightly larger rectangle for the background box
+            padding = 20
+            box_rect = rect.inflate(padding * 2, padding * 2)
+
+            # Draw filled rectangle (background box)
+            pygame.draw.rect(self.screen, (40, 40, 40), box_rect)
+
+            # Draw border around the box
+            pygame.draw.rect(self.screen, (240, 80, 80), box_rect, 3)
+
+            # Draw the text on top
+            self.screen.blit(text, rect)
+            self.screen.blit(hint, rect2)
 
         pygame.display.flip()
 
