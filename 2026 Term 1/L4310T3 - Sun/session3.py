@@ -399,6 +399,11 @@ class Game:
                         self.invuln_timer = self.invuln_time
                     break
 
+        # Wave progression
+        if not self.asteroids:
+            self.wave += 1
+            self.start_wave()
+
     def draw(self):
         """Draw everything each frame"""
         self.screen.fill((25, 25, 35)) # Background color
@@ -409,7 +414,13 @@ class Game:
         for b in self.bullets:
             b.draw(self.screen)
 
-        self.player.draw(self.screen)
+        # Draw player with a blink effect if invulnerable
+        if self.invuln_timer > 0.0:
+            # Blink by skipping draw every few frames
+            if int(self.invuln_timer * 10) % 2 == 0:
+                self.player.draw(self.screen)
+        else:
+            self.player.draw(self.screen)
 
         if self.game_over:
             text = self.font_big.render("GAME OVER", True, (240, 80, 80))
