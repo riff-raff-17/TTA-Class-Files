@@ -10,7 +10,7 @@ class Asteroid:
     SIZES = {
         "big" : 40,
         "medium" : 26,
-        "small" : 16
+        "small" : 16, 
     }
 
     def __init__(self, pos, vel, size_name="big"):
@@ -49,7 +49,7 @@ class Asteroid:
         pygame.draw.line(surface=surface, color=(160, 160, 170),
                          start_pos=(int(self.pos.x), int(self.pos.y)),
                          end_pos=(int(tip.x), int(tip.y)), width=2)
-
+    
     def get_collision_circle(self):
         return self.pos, float(self.radius)
     
@@ -100,7 +100,7 @@ class Bullet:
             self.pos.y -= h
 
         return self.lifetime > 0
-
+    
     def draw(self, surface):
         pygame.draw.circle(surface=surface, color=(255, 240, 120),
                            center=(int(self.pos.x), int(self.pos.y)), radius=self.radius)
@@ -131,7 +131,7 @@ class Player:
         self._fire_timer = 0.0
         self.bullet_speed = 650.0
         self.bullet_spawn_offset = self.radius + 4
-        
+    
     def update(self, dt, keys, screen_size):
         self._fire_timer = max(0.0, self._fire_timer - dt)
         # Rotation
@@ -170,7 +170,7 @@ class Player:
     def try_fire(self):
         if self._fire_timer > 0.0:
             return None
-        
+
         forward = pygame.Vector2(1, 0).rotate(self.angle)
         spawn_pos = self.pos + forward * self.bullet_spawn_offset
         bullet_vel = self.vel + forward * self.bullet_speed
@@ -202,7 +202,11 @@ class Player:
 
     def get_collision_circle(self):
         return self.pos, float(self.radius)
-
+    
+    def respawn(self, pos):
+        self.pos = pygame.Vector2(pos)
+        self.vel = pygame.Vector2(0, 0)
+        self.angle = -90.0
 
 class Game:
     def __init__(self, width=800, height=450, caption="Session 2 - Asteroids Ship Movement"):
@@ -217,7 +221,8 @@ class Game:
         self.running = True
         self.dt = 0.0
 
-        self.font = pygame.font.Font(None, 48)
+        self.font_big = pygame.font.Font(None, 56)
+        self.font_small = pygame.font.Font(None, 28)
 
         self.player = Player((self.width / 2, self.height / 2))
         self.bullets = []
@@ -268,12 +273,26 @@ class Game:
         self.player = Player((self.width / 2, self.height / 2))
         self.bullets = []
         self.asteroids = []
+
         self.game_over = False
-        for _ in range(self.target_asteroids):
-            self.spawn_asteroid(size_name="big")
+        self.score = 0
+        self.lives = 3
+        self.wave = 1
+        self.invuln_timer = 0.0
+
+        self.start_wave()
+
+    def award_points(self, size_name):
+        # Smaller asteroids give more points
+        if size_name == "big":
+            self.score += 20
+        elif size_name == "medium":
+            self.score += 50
+        else:
+            self.score += 100
 
     def run(self):
-        """Main game loop."""
+        """Main game loop"""
         while self.running:
             # dt in seconds (e.g., 0.016 at ~60 FPS)
             self.dt = self.clock.tick(60) / 1000.0
@@ -298,17 +317,23 @@ class Game:
                     self.reset()
 
     def update(self, dt):
+        """Update game state."""
         if self.game_over:
             return
+        
+        # Reduce invulnerability timer
+        self.invuln_timer = max(0.0, self.invuln_timer - dt)
 
         keys = pygame.key.get_pressed()
         self.player.update(dt, keys, (self.width, self.height))
 
+        # Hold SPACE to fire continuously
         if keys[pygame.K_SPACE]:
             bullet = self.player.try_fire()
             if bullet is not None:
                 self.bullets.append(bullet)
 
+        # Update bullets
         alive = []
         for b in self.bullets:
             if b.update(dt, (self.width, self.height)):
@@ -319,13 +344,10 @@ class Game:
         for a in self.asteroids:
             a.update(dt, (self.width, self.height))
 
-        # Keep asteroid count up (simple spawn system)
-        while len(self.asteroids) < self.target_asteroids:
-            self.spawn_asteroid(size_name="big")
-
-        # Collisions: bullets vs asteroids
+        # Collisions: bullets vs asteroids (with splitting)
         bullets_to_remove = set()
         asteroids_to_remove = set()
+        new_asteroids = []
 
         for bi, b in enumerate(self.bullets):
             bpos, br = b.get_collision_circle()
@@ -334,22 +356,40 @@ class Game:
                 if circles_collide(bpos, br, apos, ar):
                     bullets_to_remove.add(bi)
                     asteroids_to_remove.add(ai)
+
+                    # Score + split
+                    self.award_points(a.size_name)
+                    new_asteroids.extend(a.split())
                     break  # one bullet hits one asteroid
 
         if bullets_to_remove or asteroids_to_remove:
             self.bullets = [b for i, b in enumerate(self.bullets) if i not in bullets_to_remove]
             self.asteroids = [a for i, a in enumerate(self.asteroids) if i not in asteroids_to_remove]
+            self.asteroids.extend(new_asteroids)
 
-        # Collisions: player vs asteroids
-        ppos, pr = self.player.get_collision_circle()
-        for a in self.asteroids:
-            apos, ar = a.get_collision_circle()
-            if circles_collide(ppos, pr, apos, ar):
-                self.game_over = True
-                break
+        # Collisions: player vs asteroids (lives + invuln)
+        if self.invuln_timer <= 0.0:
+            ppos, pr = self.player.get_collision_circle()
+            for a in self.asteroids:
+                apos, ar = a.get_collision_circle()
+                if circles_collide(ppos, pr, apos, ar):
+                    self.lives -= 1
+
+                    if self.lives <= 0:
+                        self.game_over = True
+                    else:
+                        # Respawn player in the center with invulnerability
+                        self.player.respawn((self.width / 2, self.height / 2))
+                        self.invuln_timer = self.invuln_time
+                    break
+
+        # Wave progression
+        if not self.asteroids:
+            self.wave += 1
+            self.start_wave()
 
     def draw(self):
-        """Draw everything each frame."""
+        """Draw everything each frame"""
         self.screen.fill((25, 25, 35))
 
         for a in self.asteroids:
@@ -358,14 +398,27 @@ class Game:
         for b in self.bullets:
             b.draw(self.screen)
 
-        self.player.draw(self.screen)
+        # Draw player with a blink effect if invulnerable
+        if self.invuln_timer > 0.0:
+            # Blink by skipping draw every few frames
+            if int(self.invuln_timer * 10) % 2 == 0:
+                self.player.draw(self.screen)
+        else:
+            self.player.draw(self.screen)
+
+        # HUD
+        hud = self.font_small.render(
+            "Score: {}   Lives: {}   Wave: {}".format(self.score, self.lives, self.wave),
+            True, (220, 220, 220)
+        )
+        self.screen.blit(hud, (10, 10))
 
         if self.game_over:
-            text = self.font.render("GAME OVER", True, (240, 80, 80))
-            hint = pygame.font.Font(None, 28).render("Press R to restart", True, (220, 220, 220))
+            text = self.font_big.render("GAME OVER", True, (240, 80, 80))
+            hint = self.font_small.render("Press R to restart", True, (220, 220, 220))
 
             rect = text.get_rect(center=(self.width / 2, self.height / 2 - 20))
-            rect2 = hint.get_rect(center=(self.width / 2, self.height / 2 + 20))
+            rect2 = hint.get_rect(center=(self.width / 2, self.height / 2 + 25))
 
             # Create a slightly larger rectangle for the background box
             padding = 20
