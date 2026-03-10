@@ -1,6 +1,6 @@
 import sys
-import pygame
 import random
+import pygame
 
 def circles_collide(pos_a, r_a, pos_b, r_b):
     # circle-circle collision using squared distance
@@ -8,9 +8,9 @@ def circles_collide(pos_a, r_a, pos_b, r_b):
 
 class Asteroid:
     SIZES = {
-        "big" : 40,
-        "medium" : 26,
-        "small" : 16, 
+        "big": 40,
+        "medium": 26,
+        "small": 16,
     }
 
     def __init__(self, pos, vel, size_name="big"):
@@ -22,6 +22,20 @@ class Asteroid:
         # Optional: small spin for visual interest
         self.angle = random.uniform(0, 360)
         self.spin = random.uniform(-90, 90) # degrees per second
+
+        # jagged polygon outline (local space)
+        self.local_points = self._make_jagged_points()
+
+    def _make_jagged_points(self):
+        points = []
+        vertex_count = random.randint(9, 14)
+
+        for i in range(vertex_count):
+            ang = (360 / vertex_count) * i
+            r = self.radius * random.uniform(0.65, 1.15)
+            points.append(pygame.Vector2(r, 0).rotate(ang))
+
+        return points
 
     def update(self, dt, screen_size):
         self.pos += self.vel * dt
