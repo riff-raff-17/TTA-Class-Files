@@ -24,6 +24,20 @@ class Asteroid:
         self.angle = random.uniform(0, 360)
         self.spin = random.uniform(-90, 90) # degrees per second
 
+        # Jagged polygon outline
+        self.local_points = self._make_jagged_points()
+    
+    def _make_jagged_points(self):
+        points = []
+        vertex_count = random.randint(9, 14)
+
+        for i in range(vertex_count):
+            ang = (360 / vertex_count) * i
+            r = self.radius * random.uniform(0.65, 1.15)
+            points.append(pygame.Vector2(r, 0).rotate(ang))
+
+        return points
+
     def update(self, dt, screen_size):
         self.pos += self.vel * dt
         self.angle = (self.angle + self.spin * dt) % 360
@@ -40,17 +54,13 @@ class Asteroid:
             self.pos.y -= h
 
     def draw(self, surface):
-        # We'll draw a simple "rock" as a circle for now
-        pygame.draw.circle(surface=surface, color=(160, 160, 170),
-                           center=(int(self.pos.x), int(self.pos.y)),
-                           radius=int(self.radius), width=2)
-        
-        # Tiny line showing rotation
-        tip = pygame.Vector2(self.radius, 0).rotate(self.angle) + self.pos
-        pygame.draw.line(surface=surface, color=(160, 160, 170),
-                         start_pos=(int(self.pos.x), int(self.pos.y)),
-                         end_pos=(int(tip.x), int(tip.y)), width=2)
-        
+        world_points = []
+        for p in self.local_points:
+            wp = p.rotate(self.angle) + self.pos
+            world_points.append((int(wp.x), int(wp.y)))
+
+        pygame.draw.polygon(surface, (160, 160, 170), world_points, width=2)
+
     def get_collision_circle(self):
         return self.pos, float(self.radius)
     
@@ -101,7 +111,7 @@ class Bullet:
             self.pos.y -= h
 
         return self.lifetime > 0
-
+        
     def draw(self, surface):
         pygame.draw.circle(surface, (255, 240, 120),
                            (int(self.pos.x), int(self.pos.y)), self.radius)
@@ -128,7 +138,7 @@ class Player:
         self.radius = 16
 
         # Shooting
-        self.fire_cooldown = 0.18
+        self.fire_cooldown = 0.05
         self._fire_timer = 0.0
         self.bullet_speed = 650.0
         self.bullet_spawn_offset = self.radius + 4
