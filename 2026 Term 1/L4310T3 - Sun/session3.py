@@ -29,6 +29,17 @@ class Asteroid:
         # Jagged polygon outline
         self.local_points = self._make_jagged_points()
 
+    def _make_jagged_points(self):
+        points = []
+        vertex_count = random.randint(9, 14)
+
+        for i in range(vertex_count):
+            ang = (360 / vertex_count) * i
+            r = self.radius * random.uniform(0.65, 1.15)
+            points.append(pygame.Vector2(r, 0).rotate(ang))
+
+        return points
+
     def update(self, dt, screen_size):
         self.pos += self.vel * dt
         self.angle = (self.angle + self.spin * dt) % 360
@@ -45,17 +56,13 @@ class Asteroid:
             self.pos.y -= h
 
     def draw(self, surface):
-        # We'll draw a simple "rock" as a circle for now
-        pygame.draw.circle(surface, (160, 160, 170),
-                           (int(self.pos.x), int(self.pos.y)), 
-                           int(self.radius), 2)
-        
-        # Tiny line showing rotation
-        tip = pygame.Vector2(self.radius, 0).rotate(self.angle) + self.pos
-        pygame.draw.line(surface, (160, 160, 170),
-                           (int(self.pos.x), int(self.pos.y)), 
-                           (int(tip.x), int(tip.y)), 2)
-        
+        world_points = []
+        for p in self.local_points:
+            wp = p.rotate(self.angle) + self.pos
+            world_points.append((int(wp.x), int(wp.y)))
+
+        pygame.draw.polygon(surface, (160, 160, 170), world_points, width=2)
+
     def get_collision_circle(self):
         return self.pos, float(self.radius)
     
@@ -124,7 +131,7 @@ class Player:
         self.angle = -90.0 # start pointing up
 
         # Tuning
-        self.turn_speed = 220.0 # degrees per second
+        self.turn_speed = 360.0 # degrees per second
         self.thrust_accel = 520.0 # pixels per second^2
         self.max_speed = 420.0 # clamp velocity magnitude
         self.damping = 0.995 # slight drift reduction per frame; 0.5% reduction per frame
@@ -378,7 +385,7 @@ class Game:
                     break
 
         if bullets_to_remove or asteroids_to_remove:
-            self.bullets = [b for i, b in enumerate(self.bullets) if i not in bullets_to_remove]
+            # self.bullets = [b for i, b in enumerate(self.bullets) if i not in bullets_to_remove]
             self.asteroids = [a for i, a in enumerate(self.asteroids) if i not in asteroids_to_remove]
             self.asteroids.extend(new_asteroids)
 
