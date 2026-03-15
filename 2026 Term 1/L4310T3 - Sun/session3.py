@@ -26,6 +26,9 @@ class Asteroid:
         self.angle = random.uniform(0, 360)
         self.spin = random.uniform(-90, 90) # degrees per second
 
+        # Jagged polygon outline
+        self.local_points = self._make_jagged_points()
+
     def update(self, dt, screen_size):
         self.pos += self.vel * dt
         self.angle = (self.angle + self.spin * dt) % 360
@@ -356,10 +359,6 @@ class Game:
         for a in self.asteroids:
             a.update(dt, (self.width, self.height))
 
-        # Keep asteroid count up (simple spawn system)
-        while len(self.asteroids) < self.target_asteroids:
-            self.spawn_asteroid(size_name="big")
-
         # Collisions: bullets vs asteroids (with splitting)
         bullets_to_remove = set()
         asteroids_to_remove = set()
@@ -421,6 +420,13 @@ class Game:
                 self.player.draw(self.screen)
         else:
             self.player.draw(self.screen)
+
+        # HUD
+        hud = self.font_small.render(
+            "Score: {}   Lives: {}   Wave: {}".format(self.score, self.lives, self.wave),
+            True, (220, 220, 220)
+        )
+        self.screen.blit(hud, (10, 10))
 
         if self.game_over:
             text = self.font_big.render("GAME OVER", True, (240, 80, 80))

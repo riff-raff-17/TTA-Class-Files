@@ -119,6 +119,63 @@ class Bullet:
     def get_collision_circle(self):
         return self.pos, float(self.radius)
 
+class ShipExplosion:
+    def __init__(self, ship_points, base_velocity):
+        # Three edges of the ship triangle
+        pairs = [
+            (ship_points[0], ship_points[1]),
+            (ship_points[1], ship_points[2]),
+            (ship_points[2], ship_points[0])
+        ]
+
+        self.segments = []
+        self.total_lifetime = 0.8
+        self.lifetime = self.total_lifetime
+
+        for a, b in pairs:
+            a = pygame.Vector2(a)
+            b = pygame.Vector2(b)
+
+            kick = pygame.Vector2(1, 0).rotate(random.uniform(0, 360)) * random.uniform(80, 220)
+            vel = pygame.Vector2(base_velocity) + kick
+            
+            self.segments.append({"a": a, "b": b, "vel": vel})
+
+    def update(self, dt, screen_size):
+        self.lifetime -= dt
+        w, h = screen_size
+
+        for seg in self.segments:
+            seg["a"] += seg["vel"] * dt
+            seg["b"] += seg["vel"] * dt
+
+            # Wrap endpoints
+            for key in ("a", "b"):
+                p = seg[key]
+                if p.x < 0:
+                    p.x += w
+                elif p.x >= w:
+                    p.x -= w
+
+                if p.y < 0:
+                    p.y += h
+                elif p.y >= h:
+                    p.y -= h
+
+        return self.lifetime > 0
+    
+    def draw(self, surface):
+        t = max(0.0, min(1.0, self.lifetime / self.total_lifetime))
+        c = int(220 * t)
+
+        for seg in self.segments:
+            pygame.draw.line(
+                surface, (c, c, c),
+                (int(seg["a"].x), int(seg["a"].y)),
+                (int(seg["b"].x), int(seg["b"].y)),
+                2
+            )
+
 class Player:
     def __init__(self, pos):
         # Physics
