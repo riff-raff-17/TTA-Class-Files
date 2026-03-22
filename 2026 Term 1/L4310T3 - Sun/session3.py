@@ -268,7 +268,7 @@ class Game:
         self.start_wave()
 
     def start_wave(self):
-        # Spawn MORE asteroinds each wave
+        # Spawn MORE asteroids each wave
         count = 4 + self.wave * 2 # wave 1 -> 6 asteroids, wave 2 -> 8, ...
         for _ in range(count):
             self.spawn_asteroid(size_name="big")

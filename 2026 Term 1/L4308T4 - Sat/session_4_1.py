@@ -242,10 +242,17 @@ class Player:
 
         forward = pygame.Vector2(1, 0).rotate(self.angle)
         spawn_pos = self.pos + forward * self.bullet_spawn_offset
-        bullet_vel = self.vel + forward * self.bullet_speed
+
+        spread_angles = [-15, 0, 15]
+        bullets = []
+
+        for offset in spread_angles:
+            direction = pygame.Vector2(1, 0).rotate(self.angle + offset)
+            bullet_vel = self.vel + direction * self.bullet_speed
+            bullets.append(Bullet(spawn_pos, bullet_vel))
 
         self._fire_timer = self.fire_cooldown
-        return Bullet(spawn_pos, bullet_vel)
+        return bullets
 
     def _ship_points(self):
         """
@@ -399,9 +406,8 @@ class Game:
 
         # Hold SPACE to fire continuously
         if keys[pygame.K_SPACE]:
-            bullet = self.player.try_fire()
-            if bullet is not None:
-                self.bullets.append(bullet)
+            new_bullets = self.player.try_fire()
+            self.bullets.extend(new_bullets)
 
         alive = []
         for b in self.bullets:
@@ -432,7 +438,7 @@ class Game:
                     break # one bullet hits one asteroid
 
         if bullets_to_remove or asteroids_to_remove:
-            self.bullets = [b for i, b in enumerate(self.bullets) if i not in bullets_to_remove]
+            # self.bullets = [b for i, b in enumerate(self.bullets) if i not in bullets_to_remove]
             self.asteroids = [a for i, a in enumerate(self.asteroids) if i not in asteroids_to_remove]
             self.asteroids.extend(new_asteroids)
 
