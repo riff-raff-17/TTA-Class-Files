@@ -1,6 +1,8 @@
 from ugot import ugot
+import cv2
+import numpy as np
 got = ugot.UGOT()
-got.initialize("192.168.1.126")
+got.initialize("192.168.1.129")
 
 import pygame
 
@@ -12,6 +14,15 @@ def main():
 
     running = True
     while running:
+
+        frame = got.read_camera_data()
+        if not frame:
+            print("Failed to grab frame")
+            break
+
+        nparr = np.frombuffer(frame, np.uint8)
+        data = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
@@ -28,8 +39,16 @@ def main():
                 # Optional: stop when key released
                     got.mecanum_stop()
 
+        
+        cv2.imshow("Webcam Feed", data)
+
+        # Press "q" to quit
+        if cv2.waitKey(1) & 0xFF == ord("q"):
+            break
+
     got.mecanum_stop()
     pygame.quit()
+    cv2.destroyAllWindows()
 
 if __name__ == "__main__":
     main()
