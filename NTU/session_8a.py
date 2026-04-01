@@ -1,6 +1,6 @@
 from ugot import ugot
 import cv2
-import numpy
+import numpy as np
 import pygame
 
 got = ugot.UGOT()
