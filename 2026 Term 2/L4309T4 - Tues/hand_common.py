@@ -86,3 +86,28 @@ def make_detector(num_hands=2):
         min_tracking_confidence=0.5,
     )
     return mp_vision.HandLandmarker.create_from_options(options)
+
+# Drawing helpers
+
+def lm_px(lm, img_w, img_h):
+    """Normalised landmark -> pixel (x, y) tuple."""
+    return (int(lm.x * img_w), int(lm.y * img_h))
+
+def draw_hand(image, landmark_list, img_w, img_h):
+    """Draw hand skeleton (bones + joints) onto an OpenCV image."""
+    for a, b in HAND_CONNECTIONS:
+        cv2.line(
+            image,
+            lm_px(landmark_list[a], img_w, img_h),
+            lm_px(landmark_list[b], img_w, img_h),
+            (0, 200, 255),
+            2, 
+            cv2.LINE_AA
+        )
+    for idx, lm in enumerate(landmark_list):
+        pt = lm_px(lm, img_w, img_h)
+        is_tip = idx in FINGER_TIPS
+        color = (0, 255, 150) if is_tip else (255, 255, 255)
+        radius = 7 if is_tip else 4
+        cv2.circle(image, pt, radius, color, -1, cv2.LINE_AA)
+        cv2.circle(image, pt, radius, (0, 0, 0), 1, cv2.LINE_AA)
