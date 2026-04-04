@@ -135,3 +135,17 @@ def draw_hand(image, landmark_list, img_w, img_h):
             2, 
             cv2.LINE_AA,
         )
+
+def draw_landmark_indices(image, landmark_list, img_w, img_h):
+    """Draw the index number next to every landmark point."""
+    for idx, lm in enumerate(landmark_list):
+        cx, cy = lm_px(lm, img_w, img_h)
+        cv2.putText(
+            image, str(idx), (cx + 6, cy - 6),
+            cv2.FONT_HERSHEY_SIMPLEX, 0.35, (255, 255, 0), 1, cv2.LINE_AA
+        )
+
+def draw_datapanel(image, landmark_list, hand_label, img_w, img_h):
+    """Draw a live (x, y) coordinate table for wrist + fingertips"""
+    SHOWN = [0, 4, 8, 12, 16, 20]
+    panel_x = 10 if hand_label == "Left" else img_w // 2 + 10
