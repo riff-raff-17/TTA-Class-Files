@@ -51,7 +51,7 @@ RING_TIP = 16
 PINKY_TIP = 20
 
 FINGER_TIPS = [THUMB_TIP, INDEX_TIP, MIDDLE_TIP, RING_TIP, PINKY_TIP]
-FINGER_MCPS = [2, INDEX_MCP, 9, 13, 17] # base knuckles, one per finger
+FINGER_MCPS = [2, INDEX_MCP, 9, 13, 17]  # base knuckles, one per finger
 
 LANDMARK_NAMES = {
     0: "WRIST",
@@ -109,6 +109,7 @@ HAND_CONNECTIONS = [
 # Detector
 MODEL_PATH = "hand_landmarker.task"
 
+
 def make_detector(num_hands=2):
     """Create and return a HandLandmarker detector."""
     options = mp_vision.HandLandmarkerOptions(
@@ -117,14 +118,61 @@ def make_detector(num_hands=2):
         num_hands=num_hands,
         min_hand_detection_confidence=0.7,
         min_hand_presence_confidence=0.7,
-        min_hand_tracking_confidence=0.5
+        min_hand_tracking_confidence=0.5,
     )
     return mp_vision.HandLandmarker.create_from_options(options)
 
+
 # Drawing
+
 
 def lm_px(lm, img_w, img_h):
     """Normalised landmark -> pixel (x, y) tuple."""
     return (int(lm.x * img_w), int(lm.y * img_h))
 
+
 def draw_hand(image, landmark_list, img_w, img_h):
+    """Draw hand skeleton (bones + joints) onto an OpenCV image."""
+    for a, b in HAND_CONNECTIONS:
+        cv2.line(
+            image,
+            lm_px(landmark_list[a], img_w, img_h),
+            lm_px(landmark_list[b], img_w, img_h),
+            (0, 200, 255),
+            2,
+            cv2.LINE_AA,
+        )
+    for idx, lm in enumerate(landmark_list):
+        pt = lm_px(lm, img_w, img_h)
+        is_tip = idx in FINGER_TIPS
+        color = (0, 255, 150) if is_tip else (255, 255, 255)
+        radius = 7 if is_tip else 4 # in pixels
+        cv2.circle(image, pt, radius, color, -1, cv2.LINE_AA)
+        cv2.circle(image, pt, radius, (0, 0, 0), 1, cv2.LINE_AA)
+
+def draw_landmark_indices(image, landmark_list, img_w, img_h):
+    """Draw the index number next to every landmark point."""
+    for idx, lm in enumerate(landmark_list):
+        cx, cy = lm_px(lm, img_w, img_h)
+        cv2.putText(image, str(idx), cx + 6, cy - 6, cv2.FONT_HERSHEY_SIMPLEX,
+                    0.25, (255, 255, 0), 1, cv2.LINE_AA)
+        
+def draw_data_panel(image, landmark_list, hand_label, img_w, img_h):
+    """Draw a live (x, y) coordinate table for wrist + fingertips."""
+    SHOWN = [0, 4, 8, 12, 16, 20]
+    panel_x = 10 if hand_label == "Left" else img_w // 2 + 10
+    panel_y = 30
+    line_h = 16
+
+    cv2.rectangle(image, (panel_x - 4, panel_y - 18), (panel_x + 230, 
+                  panel_y + len(SHOWN) * line_h + 4), (0, 0, 0), -1)
+    
+    cv2.putText(image, f"{hand_label} hand", (panel_x, panel_y - 4), 
+                cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 255, 180), 1, cv2.LINE_AA)
+    
+    for i, idx in enumerate(SHOWN):
+        lm = landmark_list[idx]
+        name = LANDMARK_NAMES[idx]
+        text = f"{idx:>2} {name:<12}  x={lm.x:.2f} y={lm.y:.2f}"
+        cv2.putText(image, text, (panel_x, panel_y + (i + 1) * line_h), 
+                cv2.FONT_HERSHEY_SIMPLEX, 0.35, (200, 200, 200), 1, cv2.LINE_AA)
