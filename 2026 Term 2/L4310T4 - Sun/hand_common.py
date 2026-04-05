@@ -120,3 +120,11 @@ def make_detector(num_hands=2):
         min_hand_tracking_confidence=0.5
     )
     return mp_vision.HandLandmarker.create_from_options(options)
+
+# Drawing
+
+def lm_px(lm, img_w, img_h):
+    """Normalised landmark -> pixel (x, y) tuple."""
+    return (int(lm.x * img_w), int(lm.y * img_h))
+
+def draw_hand(image, landmark_list, img_w, img_h):
