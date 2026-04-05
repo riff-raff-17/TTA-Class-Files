@@ -70,7 +70,24 @@ def main():
                             angle3=joints_2_3,
                             duration=500,
                         )
-
+                elif event.key == pygame.K_LEFT:
+                    if joint_1 < 90:
+                        joint_1 += 5
+                        got.mechanical_joint_control(
+                            angle1=joint_1,
+                            angle2=joints_2_3,
+                            angle3=joints_2_3,
+                            duration=500,
+                        )
+                elif event.key == pygame.K_RIGHT:
+                    if joint_1 > -90:
+                        joint_1 -= 5
+                        got.mechanical_joint_control(
+                            angle1=joint_1,
+                            angle2=joints_2_3,
+                            angle3=joints_2_3,
+                            duration=500,
+                        )
             elif event.type == pygame.KEYUP:
                 got.mecanum_stop()
 
