@@ -3,3 +3,9 @@
 .vscode
 .task
 .wav
+*.dSYM/
+*
+!*.*
+!*/
+.vscode/
+.DS_Store
