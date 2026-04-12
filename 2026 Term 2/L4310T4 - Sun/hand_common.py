@@ -208,3 +208,20 @@ def draw_data_panel(image, landmark_list, hand_label, img_w, img_h):
             1,
             cv2.LINE_AA,
         )
+
+class FPSCounter:
+    def __init__(self, smoothing=20):
+        self._times = []
+        self._smoothing = smoothing
+
+    def tick(self):
+        now = time.perf_counter()
+        self._times.append(now)
+        if len(self._times) > self._smoothing:
+            self._times.pop(0)
+
+    def get_fps(self):
+        if len(self._times) < 2:
+            return 0.0
+        elapsed = self._times[-1] - self._times[0]
+        return (len(self._times) - 1) / elapsed if elapsed > 0 else 0.0
