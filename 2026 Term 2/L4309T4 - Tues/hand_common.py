@@ -17,13 +17,11 @@ probably belongs in a higher-level file instead.
 """
 
 import cv2
-import mediapipe as mp
 from mediapipe.tasks import python as mp_python
 from mediapipe.tasks.python import vision as mp_vision
 import urllib.request
 import os
 import time
-import math
 
 # Model download
 MODEL_PATH = "hand_landmarker.task"
@@ -164,6 +162,7 @@ def draw_landmark_indices(image, landmark_list, img_w, img_h):
             cv2.LINE_AA,
         )
 
+
 def draw_data_panel(image, landmark_list, hand_label, img_w, img_h):
     """Draw a live (x, y) coordinate table for wrist + fingertips."""
     SHOWN = [0, 4, 8, 12, 16, 20]
@@ -171,19 +170,39 @@ def draw_data_panel(image, landmark_list, hand_label, img_w, img_h):
     panel_y = 30
     line_h = 16
 
-    cv2.rectangle(image, (panel_x - 4, panel_y - 18), 
-                  (panel_x + 230, panel_y + len(SHOWN) * line_h + 4))
-    
-    cv2.putText(image, f"{hand_label} hand", (panel_x, panel_y - 4), cv2.FONT_HERSHEY_SIMPLEX,
-                0.45, (0, 255, 180), 1, cv2.LINE_AA)
-    
+    cv2.rectangle(
+        image,
+        (panel_x - 4, panel_y - 18),
+        (panel_x + 230, panel_y + len(SHOWN) * line_h + 4),
+    )
+
+    cv2.putText(
+        image,
+        f"{hand_label} hand",
+        (panel_x, panel_y - 4),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.45,
+        (0, 255, 180),
+        1,
+        cv2.LINE_AA,
+    )
+
     for i, idx in enumerate(SHOWN):
         lm = landmark_list[idx]
         name = LANDMARK_NAMES[idx]
         text = f"{idx:>2} {name:<12}  x={lm.x:.2f} y={lm.y:.2f}"
-        cv2.putText(image, text, (panel_x, panel_y + (i + 1) * line_h), cv2.FONT_HERSHEY_SIMPLEX,
-                    0.35, (200, 200, 200), 1, cv2.LINE_AA)
-        
+        cv2.putText(
+            image,
+            text,
+            (panel_x, panel_y + (i + 1) * line_h),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.35,
+            (200, 200, 200),
+            1,
+            cv2.LINE_AA,
+        )
+
+
 # FPS counter
 class FPSCounter:
     def __init__(self, smoothing=20):
