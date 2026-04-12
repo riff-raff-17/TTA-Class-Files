@@ -246,7 +246,7 @@ def mode_spotlight(frame, lms, w, h):
     box(frame, 8, h - 40, 370, 30)
     label(
         frame,
-        f"Edit SPOTLIGHT_IDX in the script to watch a different landmark",
+        "Edit SPOTLIGHT_IDX in the script to watch a different landmark",
         (14, h - 20),
         scale=0.38,
         color=(180, 180, 100),
