@@ -174,6 +174,8 @@ def draw_data_panel(image, landmark_list, hand_label, img_w, img_h):
         image,
         (panel_x - 4, panel_y - 18),
         (panel_x + 230, panel_y + len(SHOWN) * line_h + 4),
+        (0, 0, 0),
+        -1,
     )
 
     cv2.putText(
