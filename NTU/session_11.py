@@ -19,6 +19,13 @@ LINE_TYPE_LABELS = {
 }
 
 # --- Helper functions ---
+def line_follow(offset, mult=0.25, speed=35):
+    """Follow the detected line by turning proportionally to the line offset."""
+    rotation_speed = int(offset * mult)
+
+    # Move forward while rotating to stay aligned with the line
+    got.mecanum_move_xyz(x_speed=0, y_speed=speed, z_speed=rotation_speed)
+
 def draw_overlay(frame, offset, line_type, x, y):
     """Draw line type and offset text in the top-left corner of the frame,
     and a dot at (x, y) when a crossroads is detected."""
@@ -43,6 +50,15 @@ def draw_overlay(frame, offset, line_type, x, y):
             frame, text, (tx, ty), font, font_scale, color, thickness
         )
 
+    # Draw a dot at the detected crossroads position (line_type == 3)
+    if line_type == 3:
+        cv2.circle(
+            frame (int(x), int(y)), radius=8, color=(0, 0, 255), thickness=-1
+        )
+        cv2.circle(
+            frame, (int(x), int(y)), radius=8, color=(0,0,0), thickness=2
+        )
+
 # --- Main loop ---
 def main():
     try:
@@ -57,6 +73,7 @@ def main():
 
             offset, line_type, x, y = got.get_single_track_total_info()
             draw_overlay(data, offset, line_type, x, y)
+            line_follow(offset=offset, mult=0.25, speed=20)
 
             cv2.imshow("UGOT Camera", data) # Show UGOT camera window
 
