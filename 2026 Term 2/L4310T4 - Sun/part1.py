@@ -74,5 +74,39 @@ def main():
                 if show_data:
                     draw_data_panel(frame, hand_landmarks, hand_label, img_w, img_h)
 
+                wrist = hand_landmarks[0]
+                index_tip = hand_landmarks[8]
+                print(
+                    f"[{hand_label}]"
+                    f"WRIST=({wrist.x:.3f}, {wrist.y:.3f})"
+                    f"INDEX_TIP=({index_tip.x:.3f}, {index_tip.y:.3f})",
+                    end="\r",
+                )
+        else:
+            print("No hands detected ...", end="\r")
+
+        fps_counter.tick()
+        cv2.putText(frame, f"FPS: {fps_counter.get_fps():.0f}", (img_w - 90, 24),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2, cv2.LINE_AA)
+        
+        cv2.putText(frame, "[Q] quit    [L] landmarks   [D] data", (10, img_h - 10),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.45, (180, 180, 180), 1, cv2.LINE_AA)
+        
+        cv2.imshow("Part 1 - MediaPipe Hand Tracking", frame)
+
+        key = cv2.waitKey(1) & 0xFF
+        if key == ord("q"): # q for quit
+            break
+        elif key == ord("l"): # switch
+            show_indices = not show_indices
+        elif key == ord("d"):
+            show_data = not show_data
+
+    # --- Cleanup ---
+    cap.release()
+    cv2.destroyAllWindows()
+    detector.close()
+    print("\nDone.")
+
 if __name__ == "__main__":
     main()
