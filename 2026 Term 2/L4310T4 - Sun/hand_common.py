@@ -11,36 +11,35 @@ It contains everything that never changes:
   - FPSCounter
 
 Nothing in here should ever need editing as the project grows.
-If you find yourself wanting to change something here, it
-probably belongs in a higher-level file instead.
 =============================================================
 """
 
 import cv2
-import mediapipe
 from mediapipe.tasks import python as mp_python
 from mediapipe.tasks.python import vision as mp_vision
 import urllib.request
 import os
 import time
-import math
 
+# ---------------------------------------------------------------------------
 # Model download
+# ---------------------------------------------------------------------------
 MODEL_PATH = "hand_landmarker.task"
 MODEL_URL = (
     "https://storage.googleapis.com/mediapipe-models/"
     "hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task"
 )
 if not os.path.exists(MODEL_PATH):
-    print(f"Downloading model to '{MODEL_PATH}'...")
+    print(f"[hand_common] Downloading model to '{MODEL_PATH}'...")
     urllib.request.urlretrieve(MODEL_URL, MODEL_PATH)
-    print("Done.\n")
+    print("[hand_common] Download complete.\n")
 
+# ---------------------------------------------------------------------------
 # Landmark index constants
-
-# 21 landmarks per hand, (x, y, z) each, normalised 0-1
-# x=0 left edge, x=1 right edge, y=0 top, y=1 bottom
-# z is depth relative to wrist (negative = closer to camera)
+# ---------------------------------------------------------------------------
+# 21 landmarks per hand, (x, y, z) each, normalised 0-1.
+# x=0 left edge, x=1 right edge, y=0 top, y=1 bottom.
+# z is depth relative to wrist (negative = closer to camera).
 
 WRIST = 0
 THUMB_TIP = 4
@@ -106,10 +105,10 @@ HAND_CONNECTIONS = [
     (13, 17),
 ]
 
+
+# ---------------------------------------------------------------------------
 # Detector
-MODEL_PATH = "hand_landmarker.task"
-
-
+# ---------------------------------------------------------------------------
 def make_detector(num_hands=2):
     """Create and return a HandLandmarker detector."""
     options = mp_vision.HandLandmarkerOptions(
@@ -118,12 +117,14 @@ def make_detector(num_hands=2):
         num_hands=num_hands,
         min_hand_detection_confidence=0.7,
         min_hand_presence_confidence=0.7,
-        min_hand_tracking_confidence=0.5,
+        min_tracking_confidence=0.5,
     )
     return mp_vision.HandLandmarker.create_from_options(options)
 
 
-# Drawing
+# ---------------------------------------------------------------------------
+# Drawing helpers — pure OpenCV
+# ---------------------------------------------------------------------------
 
 
 def lm_px(lm, img_w, img_h):
@@ -146,7 +147,7 @@ def draw_hand(image, landmark_list, img_w, img_h):
         pt = lm_px(lm, img_w, img_h)
         is_tip = idx in FINGER_TIPS
         color = (0, 255, 150) if is_tip else (255, 255, 255)
-        radius = 7 if is_tip else 4  # in pixels
+        radius = 7 if is_tip else 4
         cv2.circle(image, pt, radius, color, -1, cv2.LINE_AA)
         cv2.circle(image, pt, radius, (0, 0, 0), 1, cv2.LINE_AA)
 
@@ -158,10 +159,9 @@ def draw_landmark_indices(image, landmark_list, img_w, img_h):
         cv2.putText(
             image,
             str(idx),
-            cx + 6,
-            cy - 6,
+            (cx + 6, cy - 6),
             cv2.FONT_HERSHEY_SIMPLEX,
-            0.25,
+            0.35,
             (255, 255, 0),
             1,
             cv2.LINE_AA,
@@ -182,7 +182,6 @@ def draw_data_panel(image, landmark_list, hand_label, img_w, img_h):
         (0, 0, 0),
         -1,
     )
-
     cv2.putText(
         image,
         f"{hand_label} hand",
@@ -193,7 +192,6 @@ def draw_data_panel(image, landmark_list, hand_label, img_w, img_h):
         1,
         cv2.LINE_AA,
     )
-
     for i, idx in enumerate(SHOWN):
         lm = landmark_list[idx]
         name = LANDMARK_NAMES[idx]
@@ -209,6 +207,10 @@ def draw_data_panel(image, landmark_list, hand_label, img_w, img_h):
             cv2.LINE_AA,
         )
 
+
+# ---------------------------------------------------------------------------
+# FPS counter
+# ---------------------------------------------------------------------------
 class FPSCounter:
     def __init__(self, smoothing=20):
         self._times = []
