@@ -40,3 +40,5 @@ dist/
 # Task files
 .task
 *.task
+
+.ttf
