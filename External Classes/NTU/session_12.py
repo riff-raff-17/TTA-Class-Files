@@ -59,3 +59,40 @@ def draw_landmarks(frame, landmarks, img_w, img_h):
         cv2.line(frame, pts[a], pts[b], (0, 180, 0), 2)
     for x, y in pts:
         cv2.circle(frame, (x, y), 5, (0, 220, 0), -1)
+
+# UGOT commands
+def forward():
+    print("Robot: FORWARD")
+
+def left():
+    print("Robot: LEFT")
+
+def right():
+    print("Robot: RIGHT")
+
+def backwards():
+    print("Robot: BACKWARDS")
+
+def stop():
+    print("Robot: STOP")
+
+FINGER_COMMANDS = {
+    1: (forward, "FORWARD"),
+    2: (left, "LEFT"),
+    3: (right, "RIGHT"),
+    4: (backwards, "BACKWARDS")
+}
+
+def main():
+    base_options = mp_python.BaseOptions(model_asset_path=MODEL_PATH)
+    options = vision.HandLandmarkerOptions(
+        base_options=base_options,
+        num_hands=1,
+        min_hand_detection_confidence=0.5,
+        min_hand_presence_confidence=0.5,
+        min_tracking_confidence=0.5
+    )
+    landmarker = vision.HandLandmarker.create_from_options(options)
+
+    cap = cv2.VideoCapture(0)
+    if not cap.isOpened():
