@@ -111,3 +111,35 @@ def main():
             image_format=mp.ImageFormat.SRGB,
             data=cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         )
+
+        result = landmarker.detect(mp_image)
+        label = "No hand detected!"
+        if result.hand_landmarks:
+            landmarks = result.hand_landmarks[0]
+            handedness = result.handedness[0][0].display_name
+            is_right = handedness == "Right"
+
+            draw_landmarks(frame, landmarks, img_w, img_h)
+            count = count_fingers(landmarks, is_right)
+
+            if count in FINGER_COMMANDS:
+                cmd_fn, cmd_name = FINGER_COMMANDS[count]
+                cmd_fn()
+                label = f"{count} finger(s): {cmd_name}"
+            else:
+                stop()
+                label = f"{count} finger(s): STOP"
+
+        cv2.putText(frame, label, (30, 70), cv2.FONT_HERSHEY_SIMPLEX,
+                   2, (0, 200, 0), 4)
+        cv2.imshow("claude deepseekgpt", frame)
+
+        if cv2.waitKey(1) & 0xFF == ord("q"):
+            break
+    
+    landmarker.close()
+    cap.release()
+    cv2.destroyAllWindows()
+
+if __name__ == "__main__":
+    main()
