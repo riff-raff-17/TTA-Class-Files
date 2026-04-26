@@ -96,3 +96,18 @@ def main():
 
     cap = cv2.VideoCapture(0)
     if not cap.isOpened():
+        print("Error: Could not open webcam.")
+        return 
+    
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            break
+
+        frame = cv2.flip(frame, 1)
+        img_h, img_w = frame.shape[:2]
+
+        mp_image = mp.Image(
+            image_format=mp.ImageFormat.SRGB,
+            data=cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        )
