@@ -152,3 +152,22 @@ def main():
                 "Show your hand to the camera!", True, (255, 120, 120)
             )
             screen.blit(msg, (SCREEN_W // 2 - msg.get_width() // 2, 20))
+
+        pygame.display.flip()
+        fps.tick()
+
+        # Webcam preview window
+        cv2.imshow("Camera (press Q in this window to quit)", frame)
+        if cv2.waitKey(1) & 0xFF == ord("q"):
+            running = False
+
+        clock.tick(60)
+    
+    # --- Cleanup ---
+    cap.release()
+    cv2.destroyAllWindows()
+    detector.close()
+    pygame.quit()
+
+if __name__ == "__main__":
+    main()
