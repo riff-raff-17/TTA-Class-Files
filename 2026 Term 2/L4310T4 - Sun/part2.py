@@ -1,0 +1,96 @@
+"""
+=============================================================
+PART 2 — Hand-Controlled Character (MediaPipe + Pygame)
+=============================================================
+Goal: use your hand to move a character around a pygame window.
+
+  - Index finger tip (landmark 8) steers the character.
+  - Pinch (thumb tip + index tip close together) makes the
+    character "activate" (changes colour + grows briefly).
+
+Depends on: hand_common.py
+
+Run:
+    pip install pygame opencv-python mediapipe
+    python 2_hand_game.py
+
+Controls:
+    ESC / close window — quit
+=============================================================
+"""
+
+import cv2
+import mediapipe as mp
+import pygame
+import math
+
+from hand_common import (
+    make_detector,
+    INDEX_TIP,
+    THUMB_TIP,
+    FPSCounter,
+)
+
+# --- Config ---
+SCREEN_W, SCREEN_H = 960, 640
+CAM_W, CAM_H = 640, 480
+
+# How much to smooth the character's motion (0 = no smoothing, 1 = frozen)
+SMOOTHING = 0.75
+
+# Distance between thumb tip and index tip (in normalised units) below
+# which we consider the hand "pinching"
+PINCH_THRESHOLD = 0.05
+
+# --- Helpers ---
+def norm_distance(a, b):
+    """Euclidean distance between two normalised landmarks (ignoring z)"""
+    return math.hypot(a.x - b.x, a.y - b.y)
+
+def lerp(a, b, t):
+    return a + (b - a) * t
+
+# --- Main ---
+def main():
+    # --- Pygame setup ---
+    pygame.init()
+    screen = pygame.display.set_mode((SCREEN_W, SCREEN_H))
+    clock = pygame.time.Clock()
+    font = pygame.font.SysFont("consolas", 18)
+
+    # --- Webcam + MediaPipe setup ---
+    cap = cv2.VideoCapture(0)
+    if not cap.isOpened():
+        raise RuntimeError("Could not open webcam.")
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, CAM_W)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, CAM_H)
+
+    detector = make_detector(num_hands=1)
+    fps = FPSCounter()
+
+    # --- Character state ---
+    char_x, char_y = SCREEN_W / 2, SCREEN_H / 2
+    target_x, target_y = char_x, char_y
+    is_pinching = False
+
+    running = True
+    while running:
+        # --- Input: webcam frame ---
+        ret, frame = cap.read()
+        if not ret:
+            continue
+        frame = cv2.flip(frame, 1) # mirror so it feels natural
+        img_h, img_w = frame.shape[:2]
+
+        mp_image = mp.Image(
+            image_format=mp.ImageFormat.SRGB,
+            data=cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        )
+        result = detector.detect(mp_image)
+
+        hand_visible = False
+        if result.hand_landmarks:
+            hand_visible = True
+            lms = result.hand_landmarks[0]
+            index_tip = lms[INDEX_TIP]
+            thumb_tip = lms[THUMB_TIP]
