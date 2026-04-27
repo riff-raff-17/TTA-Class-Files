@@ -29,14 +29,21 @@ def apply_cartoon(frame):
     # Smooth the colors, then overlay strong edges
     color = cv2.bilateralFilter(frame, 9, 250, 250)
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    edges = cv2.adaptiveThreshold(cv2.medianBlur(gray, 7), 255,
-                                cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 
-                                9, 2)
+    edges = cv2.adaptiveThreshold(
+        cv2.medianBlur(gray, 7),
+        255,
+        cv2.ADAPTIVE_THRESH_MEAN_C,
+        cv2.THRESH_BINARY,
+        9,
+        2,
+    )
     edges_bgr = cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
     return cv2.bitwise_and(color, edges_bgr)
 
+
 def apply_invert(frame):
     return cv2.bitwise_not(frame)
+
 
 def apply_sepia(frame):
     kernel = np.array(
@@ -44,6 +51,17 @@ def apply_sepia(frame):
     )
     sepia = cv2.transform(frame, kernel)
     return np.clip(sepia, 0, 255).astype(np.uint8)
+
+def apply_pixelate(frame):
+    h, w = frame.shape[:2]
+    small = cv2.resize(frame, (w // 16, h // 16), interpolation=cv2.INTER_LINEAR)
+    return cv2.resize(small, (w, h), interpolation=cv2.INTER_NEAREST)
+
+def apply_sharpen(frame):
+    kernel = np.array([[ 0, -1,  0],
+                       [-1,  5, -1],
+                       [ 0, -1,  0]])
+    return cv2.filter2D(frame, -1, kernel)
 
 # --- Constants ---
 FILTERS = [
@@ -54,6 +72,8 @@ FILTERS = [
     ("Cartoon", apply_cartoon),
     ("Invert", apply_invert),
     ("Sepia", apply_sepia),
+    ("Pixelate", apply_pixelate),
+    ("Pixelate", apply_sharpen)
 ]
 
 
@@ -62,9 +82,8 @@ def main():
     current = 0  # index into FILTERS
 
     got = ugot.UGOT()
-    got.initialize("192.168.1.1")
+    got.initialize("192.168.1.251")
     got.open_camera()
-
 
     while True:
         frame = got.read_camera_data()  # Read one frame of the UGOT camera
