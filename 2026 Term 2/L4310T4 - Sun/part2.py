@@ -42,13 +42,16 @@ SMOOTHING = 0.75
 # which we consider the hand "pinching"
 PINCH_THRESHOLD = 0.05
 
+
 # --- Helpers ---
 def norm_distance(a, b):
     """Euclidean distance between two normalised landmarks (ignoring z)"""
     return math.hypot(a.x - b.x, a.y - b.y)
 
+
 def lerp(a, b, t):
     return a + (b - a) * t
+
 
 # --- Main ---
 def main():
@@ -79,12 +82,12 @@ def main():
         ret, frame = cap.read()
         if not ret:
             continue
-        frame = cv2.flip(frame, 1) # mirror so it feels natural
+        frame = cv2.flip(frame, 1)  # mirror so it feels natural
         img_h, img_w = frame.shape[:2]
 
         mp_image = mp.Image(
             image_format=mp.ImageFormat.SRGB,
-            data=cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            data=cv2.cvtColor(frame, cv2.COLOR_BGR2RGB),
         )
         result = detector.detect(mp_image)
 
@@ -94,3 +97,54 @@ def main():
             lms = result.hand_landmarks[0]
             index_tip = lms[INDEX_TIP]
             thumb_tip = lms[THUMB_TIP]
+
+            # Normalised (0-1) -> pygame screen coordinates
+            target_x = index_tip.x * SCREEN_W
+            target_y = index_tip.y * SCREEN_H
+
+            # Pinch detection
+            is_pinching = norm_distance(index_tip, thumb_tip) < PINCH_THRESHOLD
+
+            # draw the fingertip on the webcam preview
+            cv2.circle(
+                frame,
+                (int(index_tip.x * img_w), int(index_tip.y * img_h)),
+                8,
+                (0, 255, 0),
+                -1,
+            )
+        else:
+            is_pinching = False
+
+        # --- Update: smooth character towards target ---
+        char_x = lerp(char_x, target_x, 1 - SMOOTHING)
+        char_y = lerp(char_y, target_y, 1 - SMOOTHING)
+
+        # --- Pygame events ---
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+            elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                running = False
+
+        # --- Render ---
+        screen.fill((20, 22, 30))
+
+        # Character
+        radius = 40 if is_pinching else 28
+        color = (255, 180, 60) if is_pinching else (80, 200, 255)
+        pygame.draw.circle(screen, color, (int(char_x), int(char_y), radius))
+        pygame.draw.circle(
+            screen, (255, 255, 255), (int(char_x), int(char_y)), radius, 2
+        )
+
+        # HUD
+        hud_lines = [
+            f"FPS: {clock.get_fps():.0f}",
+            f"Hand: {"YES" if hand_visible else "no"}",
+            f"Pinch: {"YES" if is_pinching else "no"}",
+            f"Pos: ({int(char_x)}, {int(char_y)})",
+        ]
+        for i, line in enumerate(hud_lines):
+            surf = font.render(line, True, (220, 220, 220))
+            screen.blit(surf, (10, 10 + i * 20))

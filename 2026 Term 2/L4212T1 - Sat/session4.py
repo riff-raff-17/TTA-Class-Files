@@ -1,137 +1,84 @@
-# --- Imports ---
 import cv2
 import numpy as np
 from ugot import ugot
 
+got = ugot.UGOT()
+got.initialize("192.168.1.1")
+got.open_camera()
 
-# --- List of filters in order ---
-# Each entry is a display name and a function that takes a frame and alters it
-def apply_normal(frame):
-    return frame
-
-
-def apply_grayscale(frame):
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    return cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
+# Speed ranges
+MOVE_MIN, MOVE_MAX = 5, 80  # units are in cm/s
+TURN_MIN, TURN_MAX = 5, 280  # units are in degrees/s
 
 
-def apply_blur(frame):
-    return cv2.GaussianBlur(frame, (21, 21), 0)
+def clamp(val, lo, hi):
+    # if > max, set to max. If < min, set to min. Otherwise, leave the same
+    return max(lo, min(hi, val))
 
 
-def apply_edges(frame):
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    edges = cv2.Canny(gray, 50, 150)
-    return cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
-
-
-def apply_cartoon(frame):
-    # Smooth the colors, then overlay strong edges
-    color = cv2.bilateralFilter(frame, 9, 250, 250)
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    edges = cv2.adaptiveThreshold(
-        cv2.medianBlur(gray, 7),
-        255,
-        cv2.ADAPTIVE_THRESH_MEAN_C,
-        cv2.THRESH_BINARY,
-        9,
-        2,
-    )
-    edges_bgr = cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
-    return cv2.bitwise_and(color, edges_bgr)
-
-
-def apply_invert(frame):
-    return cv2.bitwise_not(frame)
-
-
-def apply_sepia(frame):
-    kernel = np.array(
-        [[0.272, 0.534, 0.131], [0.349, 0.686, 0.168], [0.393, 0.769, 0.189]]
-    )
-    sepia = cv2.transform(frame, kernel)
-    return np.clip(sepia, 0, 255).astype(np.uint8)
-
-def apply_pixelate(frame):
-    h, w = frame.shape[:2]
-    small = cv2.resize(frame, (w // 16, h // 16), interpolation=cv2.INTER_LINEAR)
-    return cv2.resize(small, (w, h), interpolation=cv2.INTER_NEAREST)
-
-def apply_sharpen(frame):
-    kernel = np.array([[ 0, -1,  0],
-                       [-1,  5, -1],
-                       [ 0, -1,  0]])
-    return cv2.filter2D(frame, -1, kernel)
-
-# --- Constants ---
-FILTERS = [
-    ("Normal", apply_normal),
-    ("Grayscale", apply_grayscale),
-    ("Blur", apply_blur),
-    ("Edges", apply_edges),
-    ("Cartoon", apply_cartoon),
-    ("Invert", apply_invert),
-    ("Sepia", apply_sepia),
-    ("Pixelate", apply_pixelate),
-    ("Pixelate", apply_sharpen)
-]
-
-
-# --- Main Loop ---
 def main():
-    current = 0  # index into FILTERS
-
-    got = ugot.UGOT()
-    got.initialize("192.168.1.251")
-    got.open_camera()
+    move_speed = 30  # initial movement speed
+    turn_speed = 45  # initial turn speed
 
     while True:
-        frame = got.read_camera_data()  # Read one frame of the UGOT camera
-        if not frame:
+        frame = got.read_camera_data()
+        if frame is None:
             print("Failed to grab frame")
-            break  # stop our code
+            break
 
+        # Decode JPEG bytes to image
         nparr = np.frombuffer(frame, np.uint8)
         data = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        if data is None:
+            print("Failed to decode frame")
+            break
 
-        # Apply the current filter
-        name, fn = FILTERS[current]
-        output = fn(data)
-
-        # HUD - show current filter and controls
+        # Overlay current speeds
+        info = f"Move speed: {move_speed}   |   Turn speed: {turn_speed}"
         cv2.putText(
-            output,
-            f"Filter: {name}",
+            data,
+            info,
             (10, 30),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.8,
-            (0, 255, 255),
+            (0, 255, 0),
             2,
-        )
-        cv2.putText(
-            output,
-            "n = next | p = prev | q = quit",
-            (10, 60),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.55,
-            (200, 200, 200),
-            1,
+            cv2.LINE_AA,
         )
 
-        cv2.imshow("Filter Switcher", output)
+        cv2.imshow("Webcam Feed", data)
 
-        # Press 'q' to quit
+        # One waitKey per loop; capture special keys (arrows) too
         key = cv2.waitKey(1) & 0xFF
-        if key == ord("q"):
-            break
-        elif key == ord("n"):  # next filter
-            current = (current + 1) % len(FILTERS)
-        elif key == ord("p"):  # previous filter
-            current = (current - 1) % len(FILTERS)
 
+        # --- movement with WASD using current speeds ---
+        # 0=forwards, 1=backwards, 2=left, 3=right
+        if key == ord("w"):
+            got.mecanum_move_speed(0, move_speed)  # forward
+        elif key == ord("s"):
+            got.mecanum_move_speed(1, move_speed)  # backwards
+        elif key == ord("a"):
+            got.mecanum_turn_speed(2, turn_speed) # left
+        elif key == ord("d"):
+            got.mecanum_turn_speed(3, turn_speed) # right
+        elif key == ord(" "):
+            got.mecanum_stop()
+        elif key == ord("q"): # q to quit
+            break
+
+        # --- arrow keys to adjust speeds ---
+        # In OpenCV, arrow keys typically map to:
+        # up=0, down=1, left=2, right=3 (after & 0xFF)
+        if key == 0: # Up arrow -> increase movement speed
+            move_speed = clamp(move_speed + 5, MOVE_MIN, MOVE_MAX)
+        elif key == 1: # Down arrow -> decrease movement speed
+            move_speed = clamp(move_speed - 5, MOVE_MIN, MOVE_MAX)
+        elif key == 2: # Left arrow -> decrease turn speed
+            turn_speed = clamp(turn_speed - 5, TURN_MIN, TURN_MAX)
+        elif key == 3: # Right arrow -> increase turn speed
+            turn_speed = clamp(turn_speed + 5, TURN_MIN, TURN_MAX)
+    
     cv2.destroyAllWindows()
 
-
-# --- Entry Point ---
 if __name__ == "__main__":
     main()

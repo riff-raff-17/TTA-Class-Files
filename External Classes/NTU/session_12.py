@@ -2,9 +2,12 @@ import cv2
 import mediapipe as mp
 from mediapipe.tasks import python as mp_python
 from mediapipe.tasks.python import vision
-from mediapipe.tasks.python.components.containers.landmark import NormalizedLandmark
 import urllib.request
 import os
+
+from ugot import ugot
+got = ugot.UGOT()
+got.initialize("192.168.1.127")
 
 # Download the hand landmark model if not present
 MODEL_PATH = "hand_landmarker.task"
@@ -63,18 +66,23 @@ def draw_landmarks(frame, landmarks, img_w, img_h):
 # UGOT commands
 def forward():
     print("Robot: FORWARD")
+    got.mecanum_move_speed(0, 30)
 
 def left():
     print("Robot: LEFT")
+    got.mecanum_turn_speed(2, 45)
 
 def right():
     print("Robot: RIGHT")
+    got.mecanum_turn_speed(3, 45)
 
 def backwards():
     print("Robot: BACKWARDS")
+    got.mecanum_move_speed(1, 30)
 
 def stop():
     print("Robot: STOP")
+    got.mecanum_stop()
 
 FINGER_COMMANDS = {
     1: (forward, "FORWARD"),
@@ -129,10 +137,12 @@ def main():
             else:
                 stop()
                 label = f"{count} finger(s): STOP"
+        else:
+            got.mecanum_stop()
 
         cv2.putText(frame, label, (30, 70), cv2.FONT_HERSHEY_SIMPLEX,
                    2, (0, 200, 0), 4)
-        cv2.imshow("claude deepseekgpt", frame)
+        cv2.imshow("", frame)
 
         if cv2.waitKey(1) & 0xFF == ord("q"):
             break
