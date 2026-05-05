@@ -33,6 +33,7 @@ Controls:
 =============================================================
 """
 
+import cv2
 import mediapipe as mp
 import pygame
 import math
@@ -46,8 +47,10 @@ from hand_common import (
     FPSCounter,
 )
 
-# --- Config ---
-SCREEN_W = SCREEN_H = 960, 640
+# ---------------------------------------------------------------------------
+# Config
+# ---------------------------------------------------------------------------
+SCREEN_W, SCREEN_H = 960, 640
 CAM_W, CAM_H = 640, 480
 CENTER = (SCREEN_W // 2, SCREEN_H // 2)
 
@@ -57,10 +60,10 @@ PINCH_THRESHOLD = 0.05  # normalised distance for pinch detection
 # Character
 CHAR_RADIUS = 30
 
-# Bullets 
+# Bullets
 BULLET_SPEED = 10
 BULLET_RADIUS = 6
-BULLET_LIFETIME = 1.2 # seconds before bullet disappers off-screen
+BULLET_LIFETIME = 1.2  # seconds before bullet disappears off-screen
 
 # Entities
 ENEMY_RADIUS = 18
@@ -80,7 +83,9 @@ MAX_LIVES = 5
 # Aim line
 AIM_LINE_LEN = 80
 
-# --- Colors ---
+# ---------------------------------------------------------------------------
+# Colors
+# ---------------------------------------------------------------------------
 BG = (12, 14, 22)
 CHAR_COLOR = (80, 200, 255)
 CHAR_PINCH = (255, 180, 60)
@@ -92,3 +97,124 @@ HUD_COLOR = (220, 220, 220)
 LIFE_COLOR = (220, 50, 80)
 WARN_COLOR = (255, 100, 100)
 SCORE_COLOR = (255, 220, 60)
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+def norm_distance(a, b):
+    return math.hypot(a.x - b.x, a.y - b.y)
+
+
+def lerp(a, b, t):
+    return a + (b - a) * t
+
+
+def angle_to(cx, cy, tx, ty):
+    """Angle in radians from (cx, cy) toward (tx, ty)."""
+    return math.atan2(ty - cy, tx - cx)
+
+
+def spawn_edge_position():
+    """Return a random (x, y) just outside the screen edges."""
+    side = random.randint(0, 3)
+    margin = 30
+    if side == 0:  # top
+        return random.randint(0, SCREEN_W), -margin
+    elif side == 1:  # bottom
+        return random.randint(0, SCREEN_W), SCREEN_H + margin
+    elif side == 2:  # left
+        return -margin, random.randint(0, SCREEN_H)
+    else:  # right
+        return SCREEN_W + margin, random.randint(0, SCREEN_H)
+
+
+def circle_collide(ax, ay, ar, bx, by, br):
+    return math.hypot(ax - bx, ay - by) < ar + br
+
+
+# ---------------------------------------------------------------------------
+# Entity classes
+# ---------------------------------------------------------------------------
+class Entity:
+    def __init__(self, x, y, speed, radius, color, is_enemy):
+        self.x, self.y = float(x), float(y)
+        self.speed = speed
+        self.radius = radius
+        self.color = color
+        self.is_enemy = is_enemy
+        self.alive = True
+        # flash effect when spawned
+        self.spawn_time = time.time()
+
+    def update(self):
+        cx, cy = CENTER
+        angle = angle_to(self.x, self.y, cx, cy)
+        self.x += math.cos(angle) * self.speed
+        self.y += math.sin(angle) * self.speed
+
+    def draw(self, surface):
+        age = time.time() - self.spawn_time
+        # Brief white flash on spawn
+        if age < 0.15:
+            t = age / 0.15
+            r = int(lerp(255, self.color[0], t))
+            g = int(lerp(255, self.color[1], t))
+            b = int(lerp(255, self.color[2], t))
+            color = (r, g, b)
+        else:
+            color = self.color
+
+        ix, iy = int(self.x), int(self.y)
+        pygame.draw.circle(surface, color, (ix, iy), self.radius)
+        pygame.draw.circle(surface, (255, 255, 255), (ix, iy), self.radius, 2)
+
+        # Label
+        label = "E" if self.is_enemy else "F"
+        font_small = pygame.font.SysFont("consolas", 13, bold=True)
+        lbl = font_small.render(label, True, (255, 255, 255))
+        surface.blit(lbl, (ix - lbl.get_width() // 2, iy - lbl.get_height() // 2))
+
+    def reached_center(self):
+        cx, cy = CENTER
+        return math.hypot(self.x - cx, self.y - cy) < REACH_RADIUS + self.radius
+
+
+class Bullet:
+    def __init__(self, x, y, angle):
+        self.x, self.y = float(x), float(y)
+        self.vx = math.cos(angle) * BULLET_SPEED
+        self.vy = math.sin(angle) * BULLET_SPEED
+        self.alive = True
+        self.born = time.time()
+
+    def update(self):
+        self.x += self.vx
+        self.y += self.vy
+        age = time.time() - self.born
+        if age > BULLET_LIFETIME:
+            self.alive = False
+        # out of screen
+        pad = 40
+        if not (-pad < self.x < SCREEN_W + pad and -pad < self.y < SCREEN_H + pad):
+            self.alive = False
+
+    def draw(self, surface):
+        pygame.draw.circle(
+            surface, BULLET_COLOR, (int(self.x), int(self.y)), BULLET_RADIUS
+        )
+        # glow
+        glow_surf = pygame.Surface(
+            (BULLET_RADIUS * 4, BULLET_RADIUS * 4), pygame.SRCALPHA
+        )
+        pygame.draw.circle(
+            glow_surf,
+            (*BULLET_COLOR, 60),
+            (BULLET_RADIUS * 2, BULLET_RADIUS * 2),
+            BULLET_RADIUS * 2,
+        )
+        surface.blit(
+            glow_surf,
+            (int(self.x) - BULLET_RADIUS * 2, int(self.y) - BULLET_RADIUS * 2),
+        )
+
