@@ -5,6 +5,13 @@ import turtle
 screen = turtle.Screen() # creates a window
 screen.title("Turtle Fundamentals")
 
+screen.onkeypress(lambda: t.forward(5), "Up")
+screen.onkeypress(lambda: t.backward(5), "Down")
+screen.onkeypress(lambda: t.left(5), "Left")
+screen.onkeypress(lambda: t.right(5), "Right")
+
+screen.listen()
+
 t = turtle.Turtle() # creates a turtle object
 t.speed(1) # 0 = fastest, 1-10 slower
 
@@ -37,6 +44,24 @@ t.forward(80)
 t.color("red") # new color
 t.pensize(5)
 t.forward(80)
+
+# 4. Pen Up / Pen Down
+# Move the turtle without drawing
+
+t.penup()
+t.goto(-50, 50)
+t.pendown()
+
+t.color("green")
+t.circle(40) # draw a circle with radius 40
+
+# 5. Drawing with Loops
+
+# Square using a loop
+t.color("purple")
+for _ in range(4):
+    t.forward(60)
+    t.right(90)
 
 # Keeps the window open until the user closes it
 turtle.done()
