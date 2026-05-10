@@ -10,6 +10,7 @@ Move your index finger to control the robot:
 Press 'q' to quit.
 """
 
+from ugot import ugot
 import cv2
 import mediapipe as mp
 from mediapipe.tasks import python as mp_python
@@ -21,22 +22,27 @@ from helpers import get_direction, draw_overlay, download_model, MODEL_PATH
 
 # --- Robot functions ---
 def robot_forward():
+    got.mecanum_move_speed(0, 30)
     print("FORWARD")
 
 
 def robot_backward():
+    got.mecanum_move_speed(1, 30)
     print("BACKWARD")
 
 
 def robot_left():
+    got.mecanum_turn_speed(2, 45)
     print("LEFT")
 
 
 def robot_right():
+    got.mecanum_turn_speed(3, 45)
     print("RIGHT")
 
 
 def robot_stop():
+    got.mecanum_stop()
     print("STOP")
 
 
@@ -55,6 +61,8 @@ def dispatch(direction):
 # --- Main loop ---
 INDEX_FINGER_TIP = 8
 
+got = ugot.UGOT()
+got.initialize("192.168.88.1")
 
 def main():
     download_model()
