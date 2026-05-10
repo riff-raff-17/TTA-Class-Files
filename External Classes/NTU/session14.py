@@ -99,3 +99,23 @@ def main():
             tip = lm[INDEX_FINGER_TIP]
             tip_px = (int(tip.x * w), int(tip.y * h))
             direction = get_direction(tip.x, tip.y)
+
+        draw_overlay(frame, direction, tip_px)
+        cv2.imshow("Robot Control", frame)
+
+        # Only call the robot when the command changes (avoids spam)
+        if direction != last_direction:
+            dispatch(direction)
+            last_direction = direction
+
+        if cv2.waitKey(1) & 0xFF == ord("q"):
+            break
+
+    landmarker.close()
+    cap.release()
+    cv2.destroyAllWindows()
+    print("Stopped!")
+
+
+if __name__ == "__main__":
+    main()
