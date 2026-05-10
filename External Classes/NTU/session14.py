@@ -30,3 +30,9 @@ def robot_left():
 
 def robot_right():
     print("RIGHT")
+
+def dispatch(direction):
+    """Call the appropriate robot function."""
+    actions = {
+        "forward": robot_forward
+    }
