@@ -28,10 +28,11 @@ HAND_CONNECTIONS = [
 ]
 
 def hand_center(landmarks):
-    """Return the (x, y) centroid of all 21 landmarks in normalised [0,1] coords"""
+    """Return the (x, y) centroid of all 21 landmarks in normalised [0,1] coords."""
     xs = [lm.x for lm in landmarks]
     ys = [lm.y for lm in landmarks]
     return float(np.mean(xs)), float(np.mean(ys))
+
 
 def draw_hand(frame, landmarks, img_w, img_h):
     pts = [(int(lm.x * img_w), int(lm.y * img_h)) for lm in landmarks]
@@ -39,6 +40,7 @@ def draw_hand(frame, landmarks, img_w, img_h):
         cv2.line(frame, pts[a], pts[b], (0, 200, 80), 2)
     for x, y in pts:
         cv2.circle(frame, (x, y), 5, (0, 200, 80), -1)
+
 
 def draw_crosshair(frame, img_w, img_h):
     cx, cy = img_w // 2, img_h // 2
@@ -68,8 +70,8 @@ def main():
     cap = cv2.VideoCapture(0)
     if not cap.isOpened():
         print("Error: Could not open webcam.")
-        return 
-    
+        return
+
     while True:
         ret, frame = cap.read()
         if not ret:
@@ -84,7 +86,7 @@ def main():
         )
 
         result = landmarker.detect(mp_image)
-        
+
         draw_crosshair(frame, img_w, img_h)
 
         if result.hand_landmarks:
