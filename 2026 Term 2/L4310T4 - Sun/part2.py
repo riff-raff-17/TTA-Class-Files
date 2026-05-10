@@ -133,7 +133,7 @@ def main():
         # Character
         radius = 40 if is_pinching else 28
         color = (255, 180, 60) if is_pinching else (80, 200, 255)
-        pygame.draw.circle(screen, color, (int(char_x), int(char_y), radius))
+        pygame.draw.circle(screen, color, (int(char_x), int(char_y)), radius)
         pygame.draw.circle(
             screen, (255, 255, 255), (int(char_x), int(char_y)), radius, 2
         )
@@ -148,3 +148,29 @@ def main():
         for i, line in enumerate(hud_lines):
             surf = font.render(line, True, (220, 220, 220))
             screen.blit(surf, (10, 10 + i * 20))
+
+        if not hand_visible:
+            msg = font.render(
+                "Show your hand to the camera!", True, (255, 120, 120)
+            )
+            screen.blit(msg, (SCREEN_W // 2 - msg.get_width() // 2, 20))
+
+        pygame.display.flip()
+        fps.tick()
+
+        # Webcam preview window
+        cv2.imshow("Camera (press ESC in this window to quit)", frame)
+        if cv2.waitKey(1) & 0xFF == ord("q"):
+            running = False
+
+        clock.tick(60)
+
+    # --- Cleanup ---
+    cap.release()
+    cv2.destroyAllWindows()
+    detector.close()
+    pygame.quit()
+
+if __name__ == "__main__":
+    main()
+        
