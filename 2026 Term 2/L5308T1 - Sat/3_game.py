@@ -330,4 +330,39 @@ class Game:
                 if circle_collide(b.x, b.y, BULLET_RADIUS, e.x, e.y, e.radius):
                     b.alive = False
                     e.alive = False
-                    
+                    if e.is_enemy:
+                        self.score += 10
+                        self._explode(e.x, e.y, ENEMY_COLOR)
+                    else:
+                        self.lives -= 1
+                        self.hit_flash = 0.5
+                        self._explode(e.x, e.y, FRIEND_COLOR)
+                    break
+
+        self.entities = [e for e in self.entities if e.alive]
+        self.bullets = [b for b in self.bullets if b.alive]
+
+        # Particles
+        self.particles = [p for p in self.particles if p.update(dt)]
+
+        # Hit flash decay
+        self.hit_flash = max(0.0, self.hit_flash - dt * 2)
+
+        if self.lives <= 0:
+            self.lives = 0
+            self.game_over = True
+
+    def _explode(self, x, y, color):
+        for _ in range(18):
+            self.particles.append(Particle(x, y, color))
+
+    # --- Draw ---
+    def draw(self, surface, font, font_big, font_med):
+        # Background
+        surface.fill(BG)
+
+        # Screen-edge red flash when hit
+        if self.hit_flash > 0:
+            alpha = int(self.hit_flash * 120)
+            overlay = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
+            overlay.fill((220, 30, 30, alpha))
