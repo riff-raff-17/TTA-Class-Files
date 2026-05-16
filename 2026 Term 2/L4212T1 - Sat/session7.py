@@ -16,7 +16,8 @@ RED_HIGH1 = np.array([10, 255, 255])
 RED_LOW2 = np.array([170, 120, 70])
 RED_HIGH2 = np.array([180, 255, 255])
 
-MIN_AREA = 2000 # ignore tiny blobs (noise); increase if getting false detections
+MIN_AREA = 2000  # ignore tiny blobs (noise); increase if getting false detections
+
 
 # --- Color detection function ---
 def find_object(frame):
@@ -38,10 +39,11 @@ def find_object(frame):
 
     if not contours:
         return None, None, None, mask
-    
+
     # Pick the largest blob
     biggest = max(contours, key=cv2.contourArea)
     area = cv2.contourArea(biggest)
+
 
 while True:
     # Grab a raw frame from the robot's camera

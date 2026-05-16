@@ -218,3 +218,87 @@ class Bullet:
             (int(self.x) - BULLET_RADIUS * 2, int(self.y) - BULLET_RADIUS * 2),
         )
 
+class Particle:
+    def __init__(self, x, y, color):
+        self.x, self.y = float(x), float(y)
+        angle = random.uniform(0, 2 * math.pi)
+        speed = random.uniform(1.5, 5)
+        self.vx = math.cos(angle) * speed
+        self.vy = math.sin(angle) * speed
+        self.color = color
+        self.life = 1.0 # 1.0 -> 0.0
+
+    def update(self, dt):
+        self.x += self.vx
+        self.y += self.vy
+        self.vy += 0.1 # gravity
+        self.life -= dt * 2.5
+        return self.life > 0
+    
+    def draw(self, surface):
+        alpha = int(max(0, self.life) * 220)
+        r = max(2, int(self.life * 7))
+        s = pygame.Surface((r * 2, r * 2), pygame.SRCALPHA)
+        pygame.draw.circle(s, (*self.color, alpha), (r, r), r)
+        surface.blit(s, (int(self.x) - r, int(self.y) - r))
+
+# Game state
+
+class Game:
+    def __init__(self):
+        self.reset()
+
+    def reset(self):
+        self.score = 0
+        self.lives = MAX_LIVES
+        self.entities = []
+        self.bullets = []
+        self.particles = []
+        self.wave = 1
+        self.wave_start = time.time()
+        self.last_spawn = time.time()
+        self.game_over = False
+        self.aim_angle = 0.0 # radians
+        self.pinching = False
+        self.prev_pinching = False
+        # Smoothed fingertip position (screen coords)
+        self.finger_x = float(CENTER[0]) + 100
+        self.finger_y = float(CENTER[1])
+        # Hit flash timer
+        self.hit_flash = 0.0
+        self.last_shot = 0.0  # timestamp of last bullet fired
+
+    # --- Difficulty ---
+    def current_wave(self):
+        elapsed = time.time() - self.wave_start
+        return int(elapsed / 10) + 1
+
+    def entity_speed(self):
+        return BASE_ENTITY_SPEED + (self.current_wave() - 1) * 0.5
+
+    def spawn_interval(self):
+        return max(0.6, SPAWN_INTERVAL - (self.current_wave() - 1) * 0.15)
+
+    # --- Spawn ---
+    def maybe_spawn(self):
+        now = time.time()
+        if now - self.last_spawn < self.spawn_interval():
+            return
+        self.last_spawn = now
+        x, y = spawn_edge_position()
+        is_enemy = random.random() < ENEMY_RATIO
+        color = ENEMY_COLOR if is_enemy else FRIEND_COLOR
+        radius = ENEMY_RADIUS if is_enemy else FRIENDLY_RADIUS
+        e = Entity(x, y, self.entity_speed(), radius, color, is_enemy)
+        self.entities.append(e)
+
+    # --- Shooting ---
+    def try_shoot(self):
+        cx, cy = CENTER
+        b = Bullet(cx, cy, self.aim_angle)
+        self.bullets.append(b)
+
+    # ---- Update ----
+    def update(self, dt):
+        if self.game_over:
+            return
