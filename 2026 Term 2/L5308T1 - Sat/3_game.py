@@ -47,8 +47,8 @@ SCREEN_W, SCREEN_H = 960, 640
 CAM_W, CAM_H = 640, 480
 CENTER = (SCREEN_W // 2, SCREEN_H // 2)
 
-SMOOTHING = 0.70 # finger-tip smoothing (0=raw, 1=frozen)
-PINCH_THRESHOLD = 0.05 # normalised distance for pinch detection
+SMOOTHING = 0.70  # finger-tip smoothing (0=raw, 1=frozen)
+PINCH_THRESHOLD = 0.05  # normalised distance for pinch detection
 
 # Cjaracter
 CHAR_RADIUS = 30
@@ -56,19 +56,19 @@ CHAR_RADIUS = 30
 # Bullets
 BULLET_SPEED = 10
 BULLET_RADIUS = 6
-BULLET_LIFETIME = 1.2 # seconds before bullet disappears off-screen
+BULLET_LIFETIME = 1.2  # seconds before bullet disappears off-screen
 
 # Entities
 ENEMY_RADIUS = 18
 FRIENDLY_RADIUS = 16
-BASE_ENTITY_SPEED = 2.4 # pixels per frame at wave 1
-SPAWN_INTERVAL = 2.0 # seconds between spawns at wave 1
-ENEMY_RATIO = 0.65 # fraction of spawns that are enemies
+BASE_ENTITY_SPEED = 2.4  # pixels per frame at wave 1
+SPAWN_INTERVAL = 2.0  # seconds between spawns at wave 1
+ENEMY_RATIO = 0.65  # fraction of spawns that are enemies
 
-REACH_RADIUS = CHAR_RADIUS + 4 # how close = "reached" the character
+REACH_RADIUS = CHAR_RADIUS + 4  # how close = "reached" the character
 
 # Shooting
-FIRE_RATE = 0.12 # seconds between bullets while pinching (~8 bullets/sec)
+FIRE_RATE = 0.12  # seconds between bullets while pinching (~8 bullets/sec)
 
 # Lives
 MAX_LIVES = 5
@@ -91,15 +91,19 @@ SCORE_COLOR = (255, 220, 60)
 
 # Helpers
 
+
 def norm_distance(a, b):
     return math.hypot(a.x - b.x, a.y - b.y)
+
 
 def lerp(a, b, t):
     return a + (b - a) * t
 
+
 def angle_to(cx, cy, tx, ty):
     """Angle in radians from (cx, cy) toward (tx, ty)."""
     return math.atan2(ty - cy, tx - cx)
+
 
 def spawn_edge_position():
     """Return a random (x, y) just outside the screen edges."""
@@ -114,8 +118,10 @@ def spawn_edge_position():
     else:  # right
         return SCREEN_W + margin, random.randint(0, SCREEN_H)
 
+
 def circle_collide(ax, ay, ar, bx, by, br):
     return math.hypot(ax - bx, ay - by) < ar + br
+
 
 # ---------------------------------------------------------------------------
 # Entity classes
@@ -136,7 +142,7 @@ class Entity:
         angle = angle_to(self.x, self.y, cx, cy)
         self.x += math.cos(angle) * self.speed
         self.y += math.sin(angle) * self.speed
-    
+
     def draw(self, surface):
         age = time.time() - self.spawn_time
         # Brief white flash on spawn
@@ -148,7 +154,7 @@ class Entity:
             color = (r, g, b)
         else:
             color = self.color
-        
+
         ix, iy = int(self.x), int(self.y)
         pygame.draw.circle(surface, color, (ix, iy), self.radius)
         pygame.draw.circle(surface, (255, 255, 255), (ix, iy), self.radius, 2)
@@ -162,7 +168,8 @@ class Entity:
     def reached_center(self):
         cx, cy = CENTER
         return math.hypot(self.x - cx, self.y - cy) < REACH_RADIUS + self.radius
-    
+
+
 class Bullet:
     def __init__(self, x, y, angle):
         self.x, self.y = float(x), float(y)
@@ -201,11 +208,12 @@ class Bullet:
             (int(self.x) - BULLET_RADIUS * 2, int(self.y) - BULLET_RADIUS * 2),
         )
 
+
 # ---------------------------------------------------------------------------
 # Particle effect
 # ---------------------------------------------------------------------------
 class Particle:
-    def __init__(self, x, y ,color):
+    def __init__(self, x, y, color):
         self.x, self.y = float(x), float(y)
         angle = random.uniform(0, 2 * math.pi)
         speed = random.uniform(1.5, 5)
@@ -217,16 +225,17 @@ class Particle:
     def update(self, dt):
         self.x += self.vx
         self.y = self.vy
-        self.vy += 0.1 # gravity
+        self.vy += 0.1  # gravity
         self.life -= dt * 2.5
         return self.life > 0
-    
+
     def draw(self, surface):
         alpha = int(max(0, self.life) * 220)
-        r  = max(2, int(self.life * 7))
+        r = max(2, int(self.life * 7))
         s = pygame.Surface((r * 2, r * 2), pygame.SRCALPHA)
         pygame.draw.circle(s, (*self.color, alpha), (r, r), r)
         surface.blit(s, (int(self.x) - r, int(self.y) - r))
+
 
 # ---------------------------------------------------------------------------
 # Game state
@@ -245,7 +254,7 @@ class Game:
         self.wave_start = time.time()
         self.last_spawn = time.time()
         self.game_over = False
-        self.aim_angle = 0.0 # radians
+        self.aim_angle = 0.0  # radians
         self.pinching = False
         self.prev_pinching = False
         # Smoothed fingertip position (screen coords)
@@ -253,19 +262,19 @@ class Game:
         self.finger_y = float(CENTER[1])
         # Hit flash timer
         self.hit_flash = 0.0
-        self.last_shot = 0.0 # timestamp of last bullet fired
-    
+        self.last_shot = 0.0  # timestamp of last bullet fired
+
     # --- Difficulty ---
     def current_wave(self):
         elapsed = time.time() - self.wave_start
         return int(elapsed / 10) + 1
-    
+
     def entity_speed(self):
         return BASE_ENTITY_SPEED + (self.current_wave() - 1) * 0.5
-    
+
     def spawn_interval(self):
         return max(0.6, SPAWN_INTERVAL - (self.current_wave() - 1) * 0.15)
-    
+
     # --- Spawn ---
     def maybe_spawn(self):
         now = time.time()
@@ -289,7 +298,7 @@ class Game:
     def update(self, dt):
         if self.game_over:
             return
-        
+
         self.wave = self.current_wave()
         self.maybe_spawn()
 
@@ -366,3 +375,31 @@ class Game:
             alpha = int(self.hit_flash * 120)
             overlay = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
             overlay.fill((220, 30, 30, alpha))
+            surface.blit(overlay, (0, 0))
+
+        # Subtle grid
+        for gx in range(0, SCREEN_W, 60):
+            pygame.draw.line(surface, (25, 28, 40), (gx, 0), (gx, SCREEN_H))
+        for gy in range(0, SCREEN_H, 60):
+            pygame.draw.line(surface, (25, 28, 40), (0, gy), (SCREEN_W, gy))
+
+        # Entities
+        for e in self.entities:
+            e.draw(surface)
+
+        # Bullets
+        for b in self.bullets:
+            b.draw(surface)
+
+        # Particles
+        for p in self.particles:
+            p.draw(surface)
+
+        # Aim line
+        cx, cy = CENTER
+        ax = cx + math.cos(self.aim_angle) * AIM_LINE_LEN
+        ay = cy + math.sin(self.aim_angle) * AIM_LINE_LEN
+        pygame.draw.line(surface, (255, 255, 255, 120), (cx, cy), (int(ax), int(ay)), 2)
+        # Arrowhead
+        for off in (-0.4, 0.4):
+            hx = ax + math.cos(self.aim_angle + math.pi + off)

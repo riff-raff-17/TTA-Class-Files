@@ -302,3 +302,106 @@ class Game:
     def update(self, dt):
         if self.game_over:
             return
+
+        self.wave = self.current_wave
+        self.maybe_spawn()
+
+        # Aim angle from finger position
+        cx, cy = CENTER
+        self.aim_angle = angle_to(cx, cy, self.finger_x, self.finger_y)
+
+        # Continuous fire while pinching, rate-limited by FIRE_RATE
+        now = time.time()
+        if self.pinching and now - self.last_shot >= FIRE_RATE:
+            self.try_shoot()
+            self.last_shot = now
+
+        # Update bullets
+        for b in self.bullets:
+            b.update()
+        self.bullets = [b for b in self.bullets if b.alive]
+
+        # Update entities & collision
+        for e in self.entities:
+            e.update()
+        
+            # Did entity reach center
+            if e.reached_center():
+                e.alive = False
+                if e.is_enemy:
+                    self.lives -= 1
+                    self.hit_flash = 0.5
+                    self._explode(e.x, e.y, ENEMY_COLOR)
+                else:
+                    self.score += 5
+                    self._explode(e.x, e.y, FRIEND_COLOR)
+                continue
+            
+            # Bullet collision
+            for b in self.bullets:
+                if not b.alive:
+                    continue
+            if circle_collide(b.x, b.y, BULLET_RADIUS, e.x, e.y, ENEMY_RADIUS):
+                b.alive = False
+                e.alive = False
+                if e.is_enemy:
+                    self.score += 10
+                    self._explode(e.x, e.y, ENEMY_COLOR)
+                else:
+                    self.lives -= 1
+                    self.hit_flash = 0.5
+                    self._explode(e.x, e.y, FRIEND_COLOR)
+                break
+
+        self.entities = [e for e in self.entities if e.alive]
+        self.bullets = [b for b in self.bullets if b.alive]
+
+        # Particles
+        self.particles = [p for p in self.particles if p.update(dt)]
+
+        # Hit flash decay
+        self.hit_flash = max(0.0, self.hit_flash - dt * 2)
+
+        if self.lives <= 0:
+            self.lives = 0
+            self.game_over = True
+
+    def _explode(self, x, y, color):
+        for _ in range(18):
+            self.particles.append(Particle(x, y, color))
+
+    # --- Draw ---
+    def draw(self, surface, font, font_big, font_med):
+        # Background
+        surface.fill(BG)
+
+        # Screen-edge red flash when hit
+        if self.hit_flash > 0:
+            alpha = int(self.hit_flash * 120)
+            overlay = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
+            overlay.fill((220, 30, 30, alpha))
+            surface.blit(overlay, (0, 0))
+
+        # Subtle grid
+        for gx in range(0, SCREEN_W, 60):
+            pygame.draw.line(surface, (25, 28, 40), (gx, 0), (gx, SCREEN_H))
+        for gy in range(0, SCREEN_H, 60):
+            pygame.draw.line(surface, (25, 28, 40), (0, gy), (SCREEN_W, gy))
+
+        # Entities
+        for e in self.entities:
+            e.draw(surface)
+
+        # Bullets
+        for b in self.bullets:
+            b.draw(surface)
+
+        # Particles
+        for p in self.particles:
+            p.draw(surface)
+
+        # Aim line
+        cx, cy = CENTER
+        ax = cx + math.cos(self.aim_angle) * AIM_LINE_LEN
+        ay = cy + math.sin(self.aim_angle) * AIM_LINE_LEN
+        pygame.draw.line(surface, (255, 255, 255, 120), (cx, cy), (int(ax), int(ay)), 2)

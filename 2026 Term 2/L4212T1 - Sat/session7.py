@@ -18,6 +18,10 @@ RED_HIGH2 = np.array([180, 255, 255])
 
 MIN_AREA = 2000  # ignore tiny blobs (noise); increase if getting false detections
 
+# --- Steering settings ---
+TURN_SPEED = 40  # how fast the robot turns to chase the object
+DEADZONE = 100  # how many pixels off-center before we bother turning
+
 
 # --- Color detection function ---
 def find_object(frame):
@@ -44,6 +48,18 @@ def find_object(frame):
     biggest = max(contours, key=cv2.contourArea)
     area = cv2.contourArea(biggest)
 
+    if area < MIN_AREA:
+        return None, None, None, mask
+
+    # Calculate the center of the blob from its bounding box
+    x, y, w, h = cv2.boundingRect(biggest)
+    cx = x + w // 2
+    cy = y + h // 2
+    return cx, cy, area, mask
+
+
+# --- tracking flag - tracking starts off, press 't' to enable ---
+tracking = False
 
 while True:
     # Grab a raw frame from the robot's camera
@@ -62,6 +78,72 @@ while True:
     if data is None:
         print("Failed to decode frame")
         break
+
+    # --- Draw a center line so yall can see where "straight" is ---
+    frame_cx = data.shape[1] // 2
+    cv2.line(data, (frame_cx, 0), (frame_cx, data.shape[0]), (255, 255, 0), 1)
+
+    # Draw the deadzone boundaries (object must cross these before the robot turns)
+    cv2.line(
+        data,
+        (frame_cx - DEADZONE, 0),
+        (frame_cx - DEADZONE, data.shape[0]),
+        (0, 165, 255),
+        1,
+    )
+    cv2.line(
+        data,
+        (frame_cx + DEADZONE, 0),
+        (frame_cx + DEADZONE, data.shape[0]),
+        (0, 165, 255),
+        1,
+    )
+
+    # Run color detection on the frame
+    cx, cy, area, mask = find_object(data)
+
+    # Show the mask in a second window (white = detected color, black = everything else)
+    cv2.imshow("Mask", mask)
+
+    if cx is not None:
+        # Draw a dot at the detected object's center
+        cv2.circle(data, (cx, cy), 12, (0, 255, 0), -1)
+        cv2.putText(
+            data,
+            f"Object at x={cx}, y={cy}",
+            (10, 60),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.7,
+            (0, 255, 0),
+            2,
+        )
+
+        # --- Steering logic ---
+        if tracking:
+            error = cx - frame_cx  # negative = object is left, positive = right
+
+            if error < -DEADZONE: # object is to the left -> turn left
+                got.mecanum_turn_speed(2, TURN_SPEED)
+            elif error > DEADZONE: # object is to the right -> turn right
+                got.mecanum_turn_speed(3, TURN_SPEED)
+            else:  # object is roughly centered -> stop turning
+                got.mecanum_stop()
+    else:
+        if tracking:
+            got.mecanum_stop()  # nothing found -> stop
+        cv2.putText(
+            data,
+            "No object found",
+            (10, 60),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.7,
+            (0, 0, 255),
+            2,
+        )
+    
+    # --- HUD showing whether tracking is on or off ---
+    mode = "TRACKING ON  (t=off)" if tracking else "TRACKING OFF (t=on)"
+    cv2.putText(data, mode, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
 
     # Display the live camera feed in a window
     cv2.imshow("Camera Feed", data)
