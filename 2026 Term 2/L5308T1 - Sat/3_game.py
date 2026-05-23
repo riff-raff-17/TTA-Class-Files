@@ -40,9 +40,16 @@ import math
 import random
 import time
 
-from hand_common import make_detector, INDEX_TIP, THUMB_TIP, FPSCounter
+from hand_common import (
+    make_detector,
+    INDEX_TIP,
+    THUMB_TIP,
+    FPSCounter,
+)
 
-# --- Config ---
+# ---------------------------------------------------------------------------
+# Config
+# ---------------------------------------------------------------------------
 SCREEN_W, SCREEN_H = 960, 640
 CAM_W, CAM_H = 640, 480
 CENTER = (SCREEN_W // 2, SCREEN_H // 2)
@@ -50,7 +57,7 @@ CENTER = (SCREEN_W // 2, SCREEN_H // 2)
 SMOOTHING = 0.70  # finger-tip smoothing (0=raw, 1=frozen)
 PINCH_THRESHOLD = 0.05  # normalised distance for pinch detection
 
-# Cjaracter
+# Character
 CHAR_RADIUS = 30
 
 # Bullets
@@ -76,7 +83,9 @@ MAX_LIVES = 5
 # Aim line
 AIM_LINE_LEN = 80
 
+# ---------------------------------------------------------------------------
 # Colors
+# ---------------------------------------------------------------------------
 BG = (12, 14, 22)
 CHAR_COLOR = (80, 200, 255)
 CHAR_PINCH = (255, 180, 60)
@@ -89,9 +98,10 @@ LIFE_COLOR = (220, 50, 80)
 WARN_COLOR = (255, 100, 100)
 SCORE_COLOR = (255, 220, 60)
 
+
+# ---------------------------------------------------------------------------
 # Helpers
-
-
+# ---------------------------------------------------------------------------
 def norm_distance(a, b):
     return math.hypot(a.x - b.x, a.y - b.y)
 
@@ -224,7 +234,7 @@ class Particle:
 
     def update(self, dt):
         self.x += self.vx
-        self.y = self.vy
+        self.y += self.vy
         self.vy += 0.1  # gravity
         self.life -= dt * 2.5
         return self.life > 0
@@ -264,7 +274,7 @@ class Game:
         self.hit_flash = 0.0
         self.last_shot = 0.0  # timestamp of last bullet fired
 
-    # --- Difficulty ---
+    # ---- Difficulty ----
     def current_wave(self):
         elapsed = time.time() - self.wave_start
         return int(elapsed / 10) + 1
@@ -275,7 +285,7 @@ class Game:
     def spawn_interval(self):
         return max(0.6, SPAWN_INTERVAL - (self.current_wave() - 1) * 0.15)
 
-    # --- Spawn ---
+    # ---- Spawn ----
     def maybe_spawn(self):
         now = time.time()
         if now - self.last_spawn < self.spawn_interval():
@@ -285,16 +295,16 @@ class Game:
         is_enemy = random.random() < ENEMY_RATIO
         color = ENEMY_COLOR if is_enemy else FRIEND_COLOR
         radius = ENEMY_RADIUS if is_enemy else FRIENDLY_RADIUS
-        e = Entity(x, y, self.entity_speed, radius, color, is_enemy)
+        e = Entity(x, y, self.entity_speed(), radius, color, is_enemy)
         self.entities.append(e)
 
-    # --- Shooting ---
+    # ---- Shooting ----
     def try_shoot(self):
         cx, cy = CENTER
         b = Bullet(cx, cy, self.aim_angle)
         self.bullets.append(b)
 
-    # --- Update ---
+    # ---- Update ----
     def update(self, dt):
         if self.game_over:
             return
@@ -319,7 +329,7 @@ class Game:
 
         # Update entities & collision
         for e in self.entities:
-            e.update
+            e.update()
 
             # Did entity reach center?
             if e.reached_center():
@@ -331,6 +341,7 @@ class Game:
                 else:
                     self.score += 5
                     self._explode(e.x, e.y, FRIEND_COLOR)
+                continue
 
             # Bullet collision
             for b in self.bullets:
@@ -402,4 +413,180 @@ class Game:
         pygame.draw.line(surface, (255, 255, 255, 120), (cx, cy), (int(ax), int(ay)), 2)
         # Arrowhead
         for off in (-0.4, 0.4):
-            hx = ax + math.cos(self.aim_angle + math.pi + off)
+            hx = ax + math.cos(self.aim_angle + math.pi + off) * 12
+            hy = ay + math.sin(self.aim_angle + math.pi + off) * 12
+            pygame.draw.line(
+                surface, AIM_COLOR, (int(ax), int(ay)), (int(hx), int(hy)), 2
+            )
+
+        # Character
+        color = CHAR_PINCH if self.pinching else CHAR_COLOR
+        radius = CHAR_RADIUS + 6 if self.pinching else CHAR_RADIUS
+        pygame.draw.circle(surface, color, CENTER, radius)
+        pygame.draw.circle(surface, (255, 255, 255), CENTER, radius, 2)
+        # Inner dot
+        pygame.draw.circle(surface, (255, 255, 255), CENTER, 5)
+
+        # HUD - top left
+        lines = [
+            f"SCORE : {self.score}",
+            f"WAVE  : {self.wave}",
+        ]
+        for i, line in enumerate(lines):
+            surf = font.render(line, True, HUD_COLOR)
+            surface.blit(surf, (12, 10 + i * 22))
+
+        # Lives - top right as hearts
+        for i in range(MAX_LIVES):
+            color = LIFE_COLOR if i < self.lives else (50, 50, 60)
+            pygame.draw.circle(surface, color, (SCREEN_W - 20 - i * 28, 22), 10)
+
+        lives_lbl = font.render("LIVES", True, HUD_COLOR)
+        surface.blit(
+            lives_lbl, (SCREEN_W - 20 - MAX_LIVES * 28 - lives_lbl.get_width() - 6, 14)
+        )
+
+        # Legend bottom
+        legend = [
+            ("RED = Enemy  → shoot to score (+10)", ENEMY_COLOR),
+            (
+                "GREEN = Friendly  → let them reach you (+5) / don't shoot!",
+                FRIEND_COLOR,
+            ),
+        ]
+        for i, (text, col) in enumerate(legend):
+            surf = font.render(text, True, col)
+            surface.blit(surf, (12, SCREEN_H - 14 - (len(legend) - i) * 20))
+
+        # Game Over overlay
+        if self.game_over:
+            overlay = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
+            overlay.fill((0, 0, 0, 170))
+            surface.blit(overlay, (0, 0))
+
+            go = font_big.render("GAME OVER", True, (220, 50, 50))
+            surface.blit(go, (SCREEN_W // 2 - go.get_width() // 2, SCREEN_H // 2 - 80))
+
+            sc = font_med.render(f"Final Score: {self.score}", True, SCORE_COLOR)
+            surface.blit(sc, (SCREEN_W // 2 - sc.get_width() // 2, SCREEN_H // 2 - 10))
+
+            restart = font_med.render("Press  R  to restart", True, HUD_COLOR)
+            surface.blit(
+                restart, (SCREEN_W // 2 - restart.get_width() // 2, SCREEN_H // 2 + 50)
+            )
+
+
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
+def main():
+    pygame.init()
+    screen = pygame.display.set_mode((SCREEN_W, SCREEN_H))
+    pygame.display.set_caption("Hand Shooting Game")
+    clock = pygame.time.Clock()
+
+    font = pygame.font.SysFont("consolas", 16)
+    font_med = pygame.font.SysFont("consolas", 28, bold=True)
+    font_big = pygame.font.SysFont("consolas", 56, bold=True)
+
+    # Webcam + MediaPipe
+    cap = cv2.VideoCapture(0)
+    if not cap.isOpened():
+        raise RuntimeError("Could not open webcam.")
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, CAM_W)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, CAM_H)
+
+    detector = make_detector(num_hands=1)
+    fps_counter = FPSCounter()
+
+    game = Game()
+    prev_time = time.time()
+
+    running = True
+    while running:
+        now = time.time()
+        dt = now - prev_time
+        prev_time = now
+
+        # ---- Webcam frame ----
+        ret, frame = cap.read()
+        if not ret:
+            continue
+        frame = cv2.flip(frame, 1)
+        img_h, img_w = frame.shape[:2]
+
+        mp_image = mp.Image(
+            image_format=mp.ImageFormat.SRGB,
+            data=cv2.cvtColor(frame, cv2.COLOR_BGR2RGB),
+        )
+        result = detector.detect(mp_image)
+
+        hand_visible = False
+        if result.hand_landmarks:
+            hand_visible = True
+            lms = result.hand_landmarks[0]
+            index_tip = lms[INDEX_TIP]
+            thumb_tip = lms[THUMB_TIP]
+
+            # Smooth finger position
+            raw_fx = index_tip.x * SCREEN_W
+            raw_fy = index_tip.y * SCREEN_H
+            game.finger_x = lerp(game.finger_x, raw_fx, 1 - SMOOTHING)
+            game.finger_y = lerp(game.finger_y, raw_fy, 1 - SMOOTHING)
+
+            game.pinching = norm_distance(index_tip, thumb_tip) < PINCH_THRESHOLD
+
+            # Draw fingertip on camera preview
+            cv2.circle(
+                frame,
+                (int(index_tip.x * img_w), int(index_tip.y * img_h)),
+                8,
+                (0, 255, 0),
+                -1,
+            )
+        else:
+            game.pinching = False
+
+        # ---- Pygame events ----
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    running = False
+                elif event.key == pygame.K_r and game.game_over:
+                    game = Game()
+
+        # ---- Update ----
+        game.update(dt)
+
+        # ---- Render ----
+        game.draw(screen, font, font_big, font_med)
+
+        # No hand warning
+        if not hand_visible:
+            msg = font_med.render("Show your hand to the camera!", True, WARN_COLOR)
+            screen.blit(msg, (SCREEN_W // 2 - msg.get_width() // 2, 30))
+
+        # FPS counter (tiny, top center)
+        fps_surf = font.render(f"{clock.get_fps():.0f} fps", True, (80, 80, 100))
+        screen.blit(fps_surf, (SCREEN_W // 2 - fps_surf.get_width() // 2, 4))
+
+        pygame.display.flip()
+        fps_counter.tick()
+
+        # Optional camera preview
+        cv2.imshow("Camera (press Q to quit)", frame)
+        if cv2.waitKey(1) & 0xFF == ord("q"):
+            running = False
+
+        clock.tick(60)
+
+    cap.release()
+    cv2.destroyAllWindows()
+    detector.close()
+    pygame.quit()
+
+
+if __name__ == "__main__":
+    main()
