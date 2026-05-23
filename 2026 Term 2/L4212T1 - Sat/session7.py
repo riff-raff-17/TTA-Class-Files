@@ -154,6 +154,21 @@ while True:
             if area_diff > AREA_DEADZONE
             else "TOO FAR" if area_diff < -AREA_DEADZONE else "GOOD DIST"
         )
+        cv2.putText(
+            data,
+            f"Area={int(area)}  [{dist_hint}]",
+            (10, 90),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.6,
+            (0, 255, 255),
+            2,
+        )
+
+        # Confidence bar (scaled to MAX_AREA) ---
+        conf = min(area / MAX_AREA, 1.0)  # 0.0 - 1.0
+        bar_x, bar_y, bar_w, bar_h = 10, 110, 200, 16
+        cv2.rectangle(data, (bar_x, bar_y), (bar_x + bar_w, bar_y + bar_h), 
+                      (50, 50, 50), -1)
 
         # --- Steering logic ---
         if tracking:
