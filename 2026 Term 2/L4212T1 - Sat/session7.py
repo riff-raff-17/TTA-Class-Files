@@ -4,7 +4,7 @@ from ugot import ugot
 
 # --- Connect to the robot and open the camera ---
 got = ugot.UGOT()
-got.initialize("192.168.1.1")
+got.initialize("192.168.1.53")
 got.open_camera()
 
 print("Camera opened. Press 'q' to quit.")
@@ -21,14 +21,27 @@ MIN_AREA = 2000  # ignore tiny blobs (noise); increase if getting false detectio
 # --- Steering settings ---
 TURN_SPEED = 40  # how fast the robot turns to chase the object
 DEADZONE = 100  # how many pixels off-center before we bother turning
+TURN_LEFT = 2 
+TURN_RIGHT = 3 
 
+# --- Forward/backward distance control settings ---
+DRIVE_SPEED = 20  # how fast the robot drives toward/away from the object
+FORWARD = 0
+BACKWARD = 1
+TARGET_AREA = 18000  # blob area (px^2) that means "just right" distance
+AREA_DEADZONE = 4000  # area must differ from TARGET_AREA by this much before we move
+
+MAX_AREA = 80000
 
 # --- Color detection function ---
 def find_object(frame):
     """
     Convert frame to HSV, build a red mask, find the biggest blob.
-    Returns (cx, cy, area, mask).
-    cx/cy/area are None if no object is found.
+    Returns (cx, cy, area, bbox, mask).
+      cx, cy  - center of the blob (None if not found)
+      area    - contour area in pixels² (None if not found)
+      bbox    - (x, y, w, h) bounding rect (None if not found)
+      mask    - the binary mask image (always returned for display)
     """
     # Convert from BGR (what OpenCV uses) to HSV (easier to filter by color)
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
@@ -42,20 +55,20 @@ def find_object(frame):
     contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     if not contours:
-        return None, None, None, mask
+        return None, None, None, None, mask
 
     # Pick the largest blob
     biggest = max(contours, key=cv2.contourArea)
     area = cv2.contourArea(biggest)
 
     if area < MIN_AREA:
-        return None, None, None, mask
+        return None, None, None, None, mask
 
     # Calculate the center of the blob from its bounding box
     x, y, w, h = cv2.boundingRect(biggest)
     cx = x + w // 2
     cy = y + h // 2
-    return cx, cy, area, mask
+    return cx, cy, area, (x, y, w, h), mask
 
 
 # --- tracking flag - tracking starts off, press 't' to enable ---
@@ -79,9 +92,11 @@ while True:
         print("Failed to decode frame")
         break
 
+    frame_h, frame_w = data.shape[:2]
+    frame_cx = frame_w // 2
+
     # --- Draw a center line so yall can see where "straight" is ---
-    frame_cx = data.shape[1] // 2
-    cv2.line(data, (frame_cx, 0), (frame_cx, data.shape[0]), (255, 255, 0), 1)
+    cv2.line(data, (frame_cx, 0), (frame_cx, frame_h), (255, 255, 0), 1)
 
     # Draw the deadzone boundaries (object must cross these before the robot turns)
     cv2.line(
@@ -100,12 +115,26 @@ while True:
     )
 
     # Run color detection on the frame
-    cx, cy, area, mask = find_object(data)
+    cx, cy, area, bbox, mask = find_object(data)
 
     # Show the mask in a second window (white = detected color, black = everything else)
     cv2.imshow("Mask", mask)
 
     if cx is not None:
+        x, y, w, h = bbox
+
+        # --- Draw bounding box around the detected object ---
+        cv2.rectangle(data, (x, y), (x + w, y + h), (0, 255, 0), 2)
+
+        # --- Draw a small crosshair at the object's center ---
+        CROSS = 10
+        cv2.line(data, (cx - CROSS, cy), (cx + CROSS, cy), (0, 255, 0), 2)
+        cv2.line(data, (cx, cy - CROSS), (cx, cy + CROSS), (0, 255, 0), 2)
+
+        # --- Label the bounding box with its pixel dimensions ---
+        cv2.putText(data, f"{w}x{h}px", (x, y - 6), cv2.FONT_HERSHEY_SIMPLEX,
+                    0.5, (0, 255, 0), 1,)
+
         # Draw a dot at the detected object's center
         cv2.circle(data, (cx, cy), 12, (0, 255, 0), -1)
         cv2.putText(
@@ -116,6 +145,14 @@ while True:
             0.7,
             (0, 255, 0),
             2,
+        )
+
+        # --- Area / distance readout ---
+        area_diff = area - TARGET_AREA
+        dist_hint = (
+            "TOO CLOSE"
+            if area_diff > AREA_DEADZONE
+            else "TOO FAR" if area_diff < -AREA_DEADZONE else "GOOD DIST"
         )
 
         # --- Steering logic ---
