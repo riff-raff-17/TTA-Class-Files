@@ -1,5 +1,5 @@
 """
-final_helpers.py — All-in-one module for robot finger control.
+final_helpers.py — All-in-one module for robot control.
 
 Contains:
   - Direction logic (get_direction)
