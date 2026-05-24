@@ -448,9 +448,9 @@ class Game:
 
         # Legend bottom
         legend = [
-            ("RED = Enemy  → shoot to score (+10)", ENEMY_COLOR),
+            ("RED = Enemy  -> shoot to score (+10)", ENEMY_COLOR),
             (
-                "GREEN = Friendly  → let them reach you (+5) / don't shoot!",
+                "GREEN = Friendly  -> let them reach you (+5) / don't shoot!",
                 FRIEND_COLOR,
             ),
         ]
