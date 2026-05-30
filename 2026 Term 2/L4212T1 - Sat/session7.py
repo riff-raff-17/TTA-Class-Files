@@ -21,8 +21,8 @@ MIN_AREA = 2000  # ignore tiny blobs (noise); increase if getting false detectio
 # --- Steering settings ---
 TURN_SPEED = 40  # how fast the robot turns to chase the object
 DEADZONE = 100  # how many pixels off-center before we bother turning
-TURN_LEFT = 2 
-TURN_RIGHT = 3 
+TURN_LEFT = 2
+TURN_RIGHT = 3
 
 # --- Forward/backward distance control settings ---
 DRIVE_SPEED = 20  # how fast the robot drives toward/away from the object
@@ -32,6 +32,7 @@ TARGET_AREA = 18000  # blob area (px^2) that means "just right" distance
 AREA_DEADZONE = 4000  # area must differ from TARGET_AREA by this much before we move
 
 MAX_AREA = 80000
+
 
 # --- Color detection function ---
 def find_object(frame):
@@ -95,7 +96,7 @@ while True:
     frame_h, frame_w = data.shape[:2]
     frame_cx = frame_w // 2
 
-    # --- Draw a center line so yall can see where "straight" is ---
+    # --- Draw a center line so you can see where "straight ahead" is ---
     cv2.line(data, (frame_cx, 0), (frame_cx, frame_h), (255, 255, 0), 1)
 
     # Draw the deadzone boundaries (object must cross these before the robot turns)
@@ -132,8 +133,15 @@ while True:
         cv2.line(data, (cx, cy - CROSS), (cx, cy + CROSS), (0, 255, 0), 2)
 
         # --- Label the bounding box with its pixel dimensions ---
-        cv2.putText(data, f"{w}x{h}px", (x, y - 6), cv2.FONT_HERSHEY_SIMPLEX,
-                    0.5, (0, 255, 0), 1,)
+        cv2.putText(
+            data,
+            f"{w}x{h}px",
+            (x, y - 6),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            (0, 255, 0),
+            1,
+        )
 
         # Draw a dot at the detected object's center
         cv2.circle(data, (cx, cy), 12, (0, 255, 0), -1)
@@ -167,18 +175,51 @@ while True:
         # Confidence bar (scaled to MAX_AREA) ---
         conf = min(area / MAX_AREA, 1.0)  # 0.0 - 1.0
         bar_x, bar_y, bar_w, bar_h = 10, 110, 200, 16
-        cv2.rectangle(data, (bar_x, bar_y), (bar_x + bar_w, bar_y + bar_h), 
-                      (50, 50, 50), -1)
+        cv2.rectangle(
+            data, (bar_x, bar_y), (bar_x + bar_w, bar_y + bar_h), (50, 50, 50), -1
+        )
+        cv2.rectangle(
+            data,
+            (bar_x, bar_y),
+            (bar_x + int(bar_w * conf), bar_y + bar_h),
+            (0, 200, 0),
+            -1,
+        )
+        cv2.rectangle(
+            data, (bar_x, bar_y), (bar_x + bar_w, bar_y + bar_h), (200, 200, 200), 1
+        )
+        cv2.putText(
+            data,
+            f"Conf {int(conf * 100)}%",
+            (bar_x + bar_w + 6, bar_y + 12),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            (200, 200, 200),
+            1,
+        )
 
         # --- Steering logic ---
         if tracking:
-            error = cx - frame_cx  # negative = object is left, positive = right
+            error = cx - frame_cx
+            area_diff = area - TARGET_AREA
 
-            if error < -DEADZONE: # object is to the left -> turn left
-                got.mecanum_turn_speed(2, TURN_SPEED)
-            elif error > DEADZONE: # object is to the right -> turn right
-                got.mecanum_turn_speed(3, TURN_SPEED)
-            else:  # object is roughly centered -> stop turning
+            turning = abs(error) > DEADZONE
+            too_close = area_diff > AREA_DEADZONE
+            too_far = area_diff < -AREA_DEADZONE
+
+            if turning and too_far:
+                got.mecanum_turn_speed(
+                    TURN_LEFT if error < 0 else TURN_RIGHT, TURN_SPEED
+                )
+            elif turning:
+                got.mecanum_turn_speed(
+                    TURN_LEFT if error < 0 else TURN_RIGHT, TURN_SPEED
+                )
+            elif too_close:
+                got.mecanum_move_speed(BACKWARD, DRIVE_SPEED)
+            elif too_far:
+                got.mecanum_move_speed(FORWARD, DRIVE_SPEED)
+            else:
                 got.mecanum_stop()
     else:
         if tracking:
@@ -192,7 +233,7 @@ while True:
             (0, 0, 255),
             2,
         )
-    
+
     # --- HUD showing whether tracking is on or off ---
     mode = "TRACKING ON  (t=off)" if tracking else "TRACKING OFF (t=on)"
     cv2.putText(data, mode, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
@@ -204,6 +245,10 @@ while True:
     key = cv2.waitKey(1) & 0xFF
     if key == ord("q"):
         break
+    elif key == ord("t"):  # toggle tracking on/off
+        tracking = not tracking
+        if not tracking:
+            got.mecanum_stop()
 
 # Clean up
 cv2.destroyAllWindows()
