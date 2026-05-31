@@ -4,6 +4,7 @@
 #include <vector>
 #include <cstdlib>
 #include <string>
+#include <algorithm>
 
 const int WIDTH = 800, HEIGHT = 600;
 
