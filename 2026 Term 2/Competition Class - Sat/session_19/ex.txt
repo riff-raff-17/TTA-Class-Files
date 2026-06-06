@@ -1,5 +1,0 @@
-camelCase - myVariableName
-PascalCase (UpperCamelCase) - MyVariableName
-snake_case - my_variable_name
-kebab-case - my-variable-name
-Train-Case - My-Variable-Name
