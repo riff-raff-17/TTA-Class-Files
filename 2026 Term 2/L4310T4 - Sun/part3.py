@@ -3,7 +3,6 @@ from panda3d.core import AmbientLight, DirectionalLight
 from panda3d.core import LVector3, LVector4
 from direct.task import Task
 
-
 class MyGame(ShowBase):
     def __init__(self):
         super().__init__()
@@ -27,7 +26,7 @@ class MyGame(ShowBase):
         sun = DirectionalLight("sun")
         sun.setColor(LVector4(1, 0.95, 0.8, 1))
         sun_np = self.render.attachNewNode(sun)
-        sun_np.setHpr(45, -45, 0)
+        sun_np.setHpr(45, -45, 0)  # heading, pitch, roll
         self.render.setLight(sun_np)
 
         # --- Input ---
@@ -42,46 +41,47 @@ class MyGame(ShowBase):
             self.accept(key, self.set_key, [key, 1])
             self.accept(key + "-up", self.set_key, [key, 0])
 
-            # Tasls
-            self.taskMgr.add(self.spin_box, "spin_box")
-            self.taskMgr.add(self.move_camera, "move_camera")
+        # --- Tasks (game loop) ---
+        self.taskMgr.add(self.spin_box, "spin_box")
+        self.taskMgr.add(self.move_camera, "move_camera")
 
-            print("Controls:")
-            print("Arrow Left / Right - rotate box")
-            print("Arrow Up / Down - move camera forward / back")
-            print("A / D - strafe camera left / right")
+        print("Controls:")
+        print("  Arrow Left / Right  - rotate box")
+        print("  Arrow Up   / Down   - move camera forward / back")
+        print("  A / D               - strafe camera left / right")
 
-            # --- Helpers ---
-            def set_key(self, key, value):
-                self.keys[key] = value
+    # --- Helpers ---
+    def set_key(self, key, value):
+        self.keys[key] = value
 
-            def spin_box(self, task):
-                """Rotate the box a little every frame based on arrows keys."""
-                dt = globalClock.getDt()
-                speed = 360  # degrees per second
+    def spin_box(self, task):
+        """Rotate the box a little every frame based on arrow keys."""
+        dt = globalClock.getDt()
+        speed = 90  # degrees per second
 
-                if self.keys["arrow_left"]:
-                    self.box.setH(self.box.getH() + speed * dt)
-                if self.keys["arrow_right"]:
-                    self.box.setH(self.box.getH() - speed * dt)
+        if self.keys["arrow_left"]:
+            self.box.setH(self.box.getH() + speed * dt)
+        if self.keys["arrow_right"]:
+            self.box.setH(self.box.getH() - speed * dt)
 
-                return Task.cont  # keep running
+        return Task.cont  # keep running
 
-        def move_camera(self, task):
-            """Move the camera with arrow up/down and A/D"""
-            dt = globalClock.getDt()
-            speed = 8
+    def move_camera(self, task):
+        """Move the camera with arrow up/down and A/D."""
+        dt = globalClock.getDt()
+        speed = 8
 
-            if self.keys["arrow_up"]:
-                self.camera.setY(self.camera, speed * dt)  # forward
-            if self.keys["arrow_down"]:
-                self.camera.setY(self.camera, -speed * dt)  # backward
-            if self.keys["a"]:
-                self.camera.setX(self.camera, -speed * dt)  # strafe left
-            if self.keys["d"]:
-                self.camera.setX(self.camera, speed * dt)  # strafe left
-            
-            return Task.cont
-        
+        if self.keys["arrow_up"]:
+            self.camera.setY(self.camera, speed * dt)  # forward
+        if self.keys["arrow_down"]:
+            self.camera.setY(self.camera, -speed * dt)  # back
+        if self.keys["a"]:
+            self.camera.setX(self.camera, -speed * dt)  # strafe left
+        if self.keys["d"]:
+            self.camera.setX(self.camera, speed * dt)  # strafe right
+
+        return Task.cont
+
+
 game = MyGame()
 game.run()
