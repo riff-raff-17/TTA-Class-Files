@@ -1,0 +1,10 @@
+[project]
+name = "l4212t2-sat"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.13"
+dependencies = [
+    "ipykernel>=7.3.0",
+    "notebook>=7.6.0",
+    "pip>=26.1.2",
+]
