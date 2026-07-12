@@ -1,12 +1,11 @@
 [project]
-name = "l5308t2-sat"
+name = "l5309t1-tues"
 version = "0.1.0"
 description = "Add your description here"
 requires-python = ">=3.13"
 dependencies = [
     "ipykernel>=7.3.0",
     "notebook>=7.6.0",
-    "numpy>=2.5.0",
+    "numpy>=2.5.1",
     "pip>=26.1.2",
-    "pygame>=2.6.1",
 ]
