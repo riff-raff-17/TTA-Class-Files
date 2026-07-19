@@ -28,6 +28,7 @@ GOAL_Y = PIVOT[1] - LINK_LENGTH  # goal line: one link-length above the pivot
 theta1 = math.radians(30)
 theta2 = math.radians(45)
 
+elapsed_time = 0.0  # seconds since start
 
 def get_joint_positions(theta1, theta2):
     """Compute pixel positions of the elbow and free end from the two angles."""
@@ -45,6 +46,21 @@ def get_joint_positions(theta1, theta2):
 
     return (x0, y0), (x1, y1), (x2, y2)
 
+
+def draw_acrobot(surface, theta1, theta2):
+    pivot, elbow, tip = get_joint_positions(theta1, theta2)
+
+    pygame.draw.line(surface, LINK_TEAL, pivot, elbow, LINK_WIDTH)
+    pygame.draw.line(surface, LINK_TEAL, elbow, tip, LINK_WIDTH)
+
+    pygame.draw.circle(
+        surface, JOINT_YELLOW, (int(pivot[0]), int(pivot[1])), JOINT_RADIUS
+    )
+    pygame.draw.circle(
+        surface, JOINT_YELLOW, (int(elbow[0]), int(elbow[1])), JOINT_RADIUS
+    )
+
+
 # --- Main loop ---
 running = True
 while running:
@@ -53,11 +69,18 @@ while running:
         if event.type == pygame.QUIT:
             running = False
 
+    # Update angles
+    theta1 = math.radians(60) * math.sin(elapsed_time)
+    theta2 = math.radians(90) * math.sin(elapsed_time * 1.7)
+
     # Draw
     screen.fill(WHITE)
+    pygame.draw.line(screen, GOAL_GRAY, (0, GOAL_Y), (WIDTH, GOAL_Y), 2)
+    draw_acrobot(screen, theta1, theta2) 
     pygame.display.flip()
 
     # Cap framerate
-    clock.tick(FPS)
+    dt_ms = clock.tick(FPS)
+    elapsed_time += dt_ms / 1000.0
 
 pygame.quit()
