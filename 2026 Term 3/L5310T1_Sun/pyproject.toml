@@ -8,4 +8,5 @@ dependencies = [
     "notebook>=7.6.0",
     "numpy>=2.5.1",
     "pip>=26.1.2",
+    "pygame>=2.6.1",
 ]
