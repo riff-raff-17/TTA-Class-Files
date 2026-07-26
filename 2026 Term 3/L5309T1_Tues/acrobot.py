@@ -23,11 +23,58 @@ LINK_WIDTH = 14  # thickness of each link
 JOINT_RADIUS = 8
 GOAL_Y = PIVOT[1] - LINK_LENGTH  # goal line: one link-length above the pivot
 
+# --- Physics constants ---
+# These describe the physical system in "physics units" (meters, kg, etc.),
+# completely separate from the pixel units used for drawing above.
+LINK_MASS_1 = 1.0  # mass of link 1 [kg]
+LINK_MASS_2 = 1.0  # mass of link 2 [kg]
+LINK_COM_POS_1 = 0.5  # position of link 1's center of mass [m]
+LINK_COM_POS_2 = 0.5  # position of link 2's center of mass [m]
+LINK_MOI = 1.0  # moment of inertia for both links
+PHYS_LINK_LENGTH = 1.0  # link length in physics units (not pixels!)
+GRAVITY = 9.8
+DT = 0.02  # physics timestep in seconds (small = more stable)
+
 # Fixed angles for now (radians). theta1 from straight down, ccw positive.
 # theta2 is relative to link 1 (the "elbow bend").
-theta1 = math.radians(30)
-theta2 = math.radians(45)
+theta1 = 0.0
+theta2 = 0.0
+theta1_dot = 0.0  # angular velocity of joint 1
+theta2_dot = 0.0  # angular velocity of joint 2
 
+
+def compute_accelerations(theta1, theta2, theta1_dot, theta2_dot, torque):
+    """The acrobot's equations of motion: given the current state and the
+    applied torque, return the angular accelerations (theta1_dotdot,
+    theta2_dotdot)."""
+    m1, m2 = LINK_MASS_1, LINK_MASS_2
+    l1 = PHYS_LINK_LENGTH
+    lc1, lc2 = LINK_COM_POS_1, LINK_COM_POS_2
+    I1, I2 = LINK_MOI, LINK_MOI
+    g = GRAVITY
+
+    # Effective inertia terms
+    d1 = m1 * lc1**2 + m2 * (l1**2 + lc2**2 + 2 * l1 * lc2 * math.cos(theta2)) + I1 + I2
+    d2 = m2 * (lc2**2 + l1 * lc2 * math.cos(theta2)) + I2
+
+    # Gravity / Coriolis terms
+    phi2 = m2 * lc2 * g * math.cos(theta1 + theta2 - math.pi / 2.0)
+    phi1 = (
+        -m2 * l1 * lc2 * theta2_dot**2 * math.sin(theta2)
+        - 2 * m2 * l1 * lc2 * theta2_dot * theta1_dot * math.sin(theta2)
+        + (m1 * lc1 + m2 * l1) * g * math.cos(theta1 - math.pi / 2)
+        + phi2
+    )
+
+    theta2_dotdot = (
+        torque
+        + d2 / d1 * phi1
+        - m2 * l1 * lc2 * theta1_dot**2 * math.sin(theta2)
+        - phi2
+    ) / (m2 * lc2**2 + I2 - d2**2 / d1)
+    theta1_dotdot = -(d2 * theta2_dotdot + phi1) / d1
+
+    return theta1_dotdot, theta2_dotdot
 
 def get_joint_positions(theta1, theta2):
     """Compute pixel positions of the elbow and free end from the two angles."""
@@ -55,6 +102,10 @@ def draw_acrobot(surface, theta1, theta2):
     pygame.draw.circle(
         surface, JOINT_YELLOW, (int(pivot[0]), int(pivot[1])), JOINT_RADIUS
     )
+    pygame.draw.circle(
+        surface, JOINT_YELLOW, (int(elbow[0]), int(elbow[1])), JOINT_RADIUS
+    )
+
 
 # --- Main loop ---
 running = True
@@ -64,11 +115,18 @@ while running:
         if event.type == pygame.QUIT:
             running = False
 
+    # Update angles
+    theta1 = math.radians(60) * math.sin(elapsed_time)
+    theta2 = math.radians(90) * math.sin(elapsed_time * 1.7)
+
     # Draw
     screen.fill(WHITE)
+    pygame.draw.line(screen, GOAL_GRAY, (0, GOAL_Y), (WIDTH, GOAL_Y), 2)
+    draw_acrobot(screen, theta1, theta2)
     pygame.display.flip()
 
     # Cap framerate
-    clock.tick(FPS)
+    dt_ms = clock.tick(FPS)
+    elapsed_time += dt_ms / 1000.0
 
 pygame.quit()

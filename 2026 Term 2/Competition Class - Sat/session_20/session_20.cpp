@@ -26,7 +26,7 @@ void randomize(Grid &g, int cols, int rows)
 int countNeighbors(const Grid &g, int x, int y, int cols, int rows)
 {
     int count = 0;
-    for (int dx = -1; dx <= 1; dx ++) // outer loop
+    for (int dx = -1; dx <= 1; dx++) // outer loop
     {
         for (int dy = -1; dy <= 1; dy++) // inner loop
         {
@@ -191,8 +191,7 @@ int main()
             (running ? "[SPACE] pause" : "[SPACE] play ") +
             std::string("  [R] random  [C] clear  [scroll] zoom\n") +
             "gen: " + std::to_string(generation) +
-            "   alive: " + std::to_string(alive) 
-        );
+            "   alive: " + std::to_string(alive));
         window.draw(hud);
 
         window.display();
