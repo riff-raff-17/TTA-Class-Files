@@ -34,6 +34,7 @@ LINK_MOI = 1.0  # moment of inertia for both links
 PHYS_LINK_LENGTH = 1.0  # link length in physics units (not pixels!)
 GRAVITY = 9.8
 DT = 0.02  # physics timestep in seconds (small = more stable)
+TORQUE_MAGNITUDE = 1.0
 
 # Fixed angles for now (radians). theta1 from straight down, ccw positive.
 # theta2 is relative to link 1 (the "elbow bend").
@@ -76,6 +77,21 @@ def compute_accelerations(theta1, theta2, theta1_dot, theta2_dot, torque):
 
     return theta1_dotdot, theta2_dotdot
 
+
+def step_physics(theta1, theta2, theta1_dot, theta2_dot, torque, dt):
+    theta1_dotdot, theta2_dotdot = compute_accelerations(
+        theta1, theta2, theta1_dot, theta2_dot, torque
+    )
+
+    theta1_dot += theta1_dotdot * dt
+    theta2_dot += theta2_dotdot * dt
+
+    theta1 += theta1_dot * dt
+    theta2 += theta2_dot * dt
+
+    return theta1, theta2, theta1_dot, theta2_dot
+
+
 def get_joint_positions(theta1, theta2):
     """Compute pixel positions of the elbow and free end from the two angles."""
     # theta measured from straight down; pygame y-axis points down,
@@ -109,15 +125,30 @@ def draw_acrobot(surface, theta1, theta2):
 
 # --- Main loop ---
 running = True
+dt_ms = 0  # milliseconds the previous frame took
+time_to_simulate = 0.0  # leftover physics time to catch up on
 while running:
     # Handle events
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
 
-    # Update angles
-    theta1 = math.radians(60) * math.sin(elapsed_time)
-    theta2 = math.radians(90) * math.sin(elapsed_time * 1.7)
+    # Read keyboard input once per frame
+    keys = pygame.key.get_pressed()
+    if keys[pygame.K_LEFT] and not keys[pygame.K_RIGHT]:
+        applied_torque = TORQUE_MAGNITUDE
+    elif keys[pygame.K_RIGHT] and not keys[pygame.K_LEFT]:
+        applied_torque = -TORQUE_MAGNITUDE
+    else:
+        applied_torque = 0.0
+
+    # Update physics
+    time_to_simulate += dt_ms / 1000.0
+    while time_to_simulate >= DT:
+        theta1, theta2, theta1_dot, theta2_dot = step_physics(
+            theta1, theta2, theta1_dot, theta2_dot, applied_torque, DT
+        )
+        time_to_simulate -= DT
 
     # Draw
     screen.fill(WHITE)
@@ -127,6 +158,5 @@ while running:
 
     # Cap framerate
     dt_ms = clock.tick(FPS)
-    elapsed_time += dt_ms / 1000.0
 
 pygame.quit()
