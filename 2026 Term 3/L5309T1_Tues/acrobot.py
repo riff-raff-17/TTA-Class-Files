@@ -10,6 +10,7 @@ pygame.display.set_caption("Acrobot")
 
 clock = pygame.time.Clock()
 FPS = 60
+font = pygame.font.SysFont(None, 36)
 
 WHITE = (255, 255, 255)
 LINK_TEAL = (92, 201, 202)
@@ -35,6 +36,9 @@ PHYS_LINK_LENGTH = 1.0  # link length in physics units (not pixels!)
 GRAVITY = 9.8
 DT = 0.02  # physics timestep in seconds (small = more stable)
 TORQUE_MAGNITUDE = 1.0
+GOAL_HEIGHT = 1.0  # win when -cos(theta1) - cos(theta1+theta2) > this
+GYM_STEP_DT = 0.2  # one Gymnasium "step" = this many seconds of physics
+MAX_STEPS = 500  # matches Gymnasium's Acrobot-v1 episode time limit
 
 # Fixed angles for now (radians). theta1 from straight down, ccw positive.
 # theta2 is relative to link 1 (the "elbow bend").
@@ -42,6 +46,16 @@ theta1 = 0.0
 theta2 = 0.0
 theta1_dot = 0.0  # angular velocity of joint 1
 theta2_dot = 0.0  # angular velocity of joint 2
+
+step_count = 0  # number of Gymnasium-equivalent steps elapsed
+episode_over = False  # True once goal is reached or time runs out
+result_text = ""  # what to display once the episode ends
+
+
+def tip_height(theta1, theta2):
+    """Height of the free end above the pivot, in physics units (link
+    lengths)."""
+    return -math.cos(theta1) - math.cos(theta1 + theta2)
 
 
 def compute_accelerations(theta1, theta2, theta1_dot, theta2_dot, torque):
@@ -127,6 +141,7 @@ def draw_acrobot(surface, theta1, theta2):
 running = True
 dt_ms = 0  # milliseconds the previous frame took
 time_to_simulate = 0.0  # leftover physics time to catch up on
+time_since_gym_step = 0.0  # tracks progress toward the next counted step
 while running:
     # Handle events
     for event in pygame.event.get():
@@ -143,17 +158,42 @@ while running:
         applied_torque = 0.0
 
     # Update physics
-    time_to_simulate += dt_ms / 1000.0
-    while time_to_simulate >= DT:
-        theta1, theta2, theta1_dot, theta2_dot = step_physics(
-            theta1, theta2, theta1_dot, theta2_dot, applied_torque, DT
-        )
-        time_to_simulate -= DT
+    if not episode_over:
+        time_to_simulate += dt_ms / 1000.0
+        while time_to_simulate >= DT:
+            theta1, theta2, theta1_dot, theta2_dot = step_physics(
+                theta1, theta2, theta1_dot, theta2_dot, applied_torque, DT
+            )
+            time_to_simulate -= DT
+            time_since_gym_step += DT
+
+            while time_since_gym_step >= GYM_STEP_DT:
+                time_since_gym_step -= GYM_STEP_DT
+                step_count += 1
+
+                if tip_height(theta1, theta2) > GOAL_HEIGHT:
+                    episode_over = True
+                    result_text = f"Solved in {step_count} steps"
+                elif episode_over >= MAX_STEPS:
+                    episode_over = True
+                    result_text = "Time's up - try again"
+
+            if episode_over:
+                break
 
     # Draw
     screen.fill(WHITE)
     pygame.draw.line(screen, GOAL_GRAY, (0, GOAL_Y), (WIDTH, GOAL_Y), 2)
     draw_acrobot(screen, theta1, theta2)
+
+    step_text = font.render(f"Step: {step_count}/{MAX_STEPS}", True, (0, 0, 0))
+    screen.blit(step_text, (10, 10))
+
+    if episode_over:
+        msg = font.render(result_text, True, (0, 0, 0))
+        msg_rect = msg.get_rect(center=(WIDTH // 2, 40))
+        screen.blit(msg, msg_rect)
+
     pygame.display.flip()
 
     # Cap framerate

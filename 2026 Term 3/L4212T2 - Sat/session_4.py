@@ -1,3 +1,4 @@
+import random
 import pygame
 
 # --- Setup ---
@@ -19,8 +20,13 @@ FPS = 60
 
 BACKGROUND_COLOR = (10, 10, 10)
 GRID_LINE_COLOR = (40, 40, 40)
-SNAKE_COLOR = (0, 200, 200)
+SNAKE_COLOR = (0, 200, 0)
 HEAD_COLOR = (0, 255, 100)
+FOOD_COLOR = (220, 60, 60)
+TEXT_COLOR = (255, 255, 255)
+
+# font = pygame.font.Font("font_path.ttf", 28)
+font = pygame.font.SysFont(None, 28)
 
 
 def draw_grid(surface):
@@ -33,6 +39,8 @@ def draw_grid(surface):
         y = row * CELL_SIZE
         pygame.draw.line(surface, GRID_LINE_COLOR, (0, y), (WINDOW_WIDTH, y))
 
+
+def random_empty_cell(occupied_cells)
 
 # --- Representing the snake as a list of segments ---
 # Each segment is an (x, y) GRID-coordinate tuple (not pixels). The first

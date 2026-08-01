@@ -10,6 +10,7 @@ using namespace std;
 class Player; // forward declaration - Item::use() needs a reference to Player
 
 // --- Items ---
+
 class Item {
 protected:
     string name;
@@ -61,8 +62,70 @@ public:
     }
 };
 
-class Room
-{
+// --- Player ---
+
+class Player {
+private:
+    string name;
+    int health;
+    int maxHealth;
+    vector<unique_ptr<Item>> inventory;
+    Weapon* equippedWeapon = nullptr; // non-owning observer into inventory
+    Armor* equippedArmor = nullptr; // non-owning observer into inventory
+
+public: 
+    explicit Player(string n, int hp = 100) : name(move(n)), health(hp), maxHealth(hp) {}
+
+    void pickUp(unique_ptr<Item> item) {
+        cout << "Picked up " << item->getName() << "." << endl;
+        inventory.push_back(move(item));
+    }
+
+    Item* findItem(const string& itemName) {
+        auto it = find_if(inventory.begin(), inventory.end(),
+            [&](const unique_ptr<Item>& i) { return i->getName() == itemName; });
+            return it == inventory.end() ? nullptr : it->get();
+    }
+
+    unique_ptr<Item> removeItem(const string& itemName) {
+        auto it = find_if(inventory.begin(), inventory.end(),
+            [&](const unique_ptr<Item>& i) { return i->getName() == itemName; });
+        if (it == inventory.end()) return nullptr;
+        unique_ptr<Item> found = move(*it);
+        inventory.erase(it);
+        if (equippedWeapon == found.get()) equippedWeapon = nullptr;
+        if (equippedArmor == found.get()) equippedArmor = nullptr;
+        return found;
+    }
+
+    void listInventory() const {
+        if (inventory.empty()) { cout << "  (empty)" << endl; return; }
+        for (const auto& item : inventory) cout << "  - " << item->describe() << endl;
+    }
+
+    void equipWeapon(Weapon* w) { equippedWeapon = w; cout << name << " equips " 
+                                    << w->getName() << "." << endl; }
+    void equipArmor(Armor* a) { equippedArmor = a; cout << name << " equips " 
+                                    << a->getName() << "." << endl; }
+    
+    void heal(int amount) {
+        health = min(maxHealth, health + amount);
+        cout << name << " heals to " << health << "/" << maxHealth << " HP." << endl;
+    }
+
+    const string& getName() const { return name; }
+    int getHealth() const { return health; }
+};
+
+// Item::use() implementations
+void Potion::use(Player& player) {
+    cout << player.getName() << " drinks the " << name << "." << endl;
+    player.heal(healAmount);
+}
+void Weapon::use(Player& player) { player.equipWeapon(this); }
+void Armor::use(Player& player) { player.equipArmor(this); }
+
+class Room {
 private:
     string name;
     string description;
