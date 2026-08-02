@@ -214,6 +214,31 @@ while running:
     else:
         applied_torque = 0.0
 
+    if not episode_over:
+        time_to_simulate += dt_ms / 1000.0
+        while time_to_simulate >= DT:
+            theta1, theta2, theta1_dot, theta2_dot = step_physics(
+                theta1, theta2, theta1_dot, theta2_dot, applied_torque, DT
+            )
+            time_to_simulate -= DT
+            time_since_gym_step += DT
+
+            while time_since_gym_step >= GYM_STEP_DT:
+                time_since_gym_step -= GYM_STEP_DT
+                step_count += 1
+
+                if tip_height(theta1, theta2) > GOAL_HEIGHT:
+                    episode_over = True
+                    result_text = f"Solved in {step_count} steps!"
+                    if best_steps is None or step_count < best_steps:
+                        best_steps = step_count
+                elif step_count >= MAX_STEPS:
+                    episode_over = True
+                    result_text = "Time's up - try again"
+
+            if episode_over:
+                break
+
     # Draw
     screen.fill(WHITE)
     pygame.draw.line(screen, GOAL_GRAY, (0, GOAL_Y), (WIDTH, GOAL_Y), 2)
