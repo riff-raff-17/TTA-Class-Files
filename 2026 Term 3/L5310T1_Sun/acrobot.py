@@ -10,11 +10,15 @@ pygame.display.set_caption("Acrobot")
 
 clock = pygame.time.Clock()
 FPS = 60
+font = pygame.font.SysFont(None, 36)
+small_font = pygame.font.SysFont(None, 24)
 
 WHITE = (255, 255, 255)
 LINK_TEAL = (92, 201, 202)
 JOINT_YELLOW = (204, 204, 66)
 GOAL_GRAY = (96, 96, 96)
+TEXT_GRAY = (140, 140, 140)
+TORQUE_ARROW = (230, 100, 60)
 
 # --- Acrobot geometry ---
 PIVOT = (WIDTH // 2, HEIGHT // 3)  # fixed point the whole system hangs from
@@ -34,12 +38,44 @@ LINK_MOI = 1.0  # moment of inertia for both links
 PHYS_LINK_LENGTH = 1.0  # link length in physics units (not pixels!)
 GRAVITY = 9.8
 DT = 0.02  # physics timestep in seconds (small = more stable)
+TORQUE_MAGNITUDE = 1.0
+GOAL_HEIGHT = 1.0
+GYM_STEP_DT = 0.2
+MAX_STEPS = 500
 
 # Acrobot state (radians, rad/s).
 theta1 = 0.0
 theta2 = 0.0
 theta1_dot = 0.0  # angular velocity of joint 1
 theta2_dot = 0.0  # angular velocity of joint 2
+
+step_count = 0
+episode_over = False
+result_text = ""
+time_since_gym_step = 0.0
+
+best_steps = None  # fastest solve
+
+
+def reset_episode():
+    """Reset the acrobot to hanging straight down and clear episode state."""
+    global theta1, theta2, theta1_dot, theta2_dot
+    global step_count, episode_over, result_text, time_since_gym_step
+
+    theta1 = 0.0
+    theta2 = 0.0
+    theta1_dot = 0.0
+    theta2_dot = 0.0
+
+    step_count = 0
+    episode_over = False
+    result_text = ""
+    time_since_gym_step = 0.0
+
+
+def tip_height(theta1, theta2):
+    """Height of the free end above the pivot, in physics units."""
+    return -math.cos(theta1) - math.cos(theta1 + theta2)
 
 
 def compute_accelerations(theta1, theta2, theta1_dot, theta2_dot, torque):
@@ -121,6 +157,42 @@ def draw_acrobot(surface, theta1, theta2):
     )
 
 
+def draw_torque_arrow(surface, theta1, theta2, torque):
+    """Small curved arrow at the elbow showing which way torque is
+    currently being applied."""
+    if torque == 0:
+        return
+
+    _, elbow, _ = get_joint_positions(theta1, theta2)
+    ex, ey = elbow
+    radius = 30
+    direction = -1 if torque > 0 else 1
+
+    span = math.radians(130)
+    n_segments = 20
+    points = []
+    for i in range(n_segments + 1):
+        a = direction * (-span / 2 + span * (i / n_segments))
+        x = ex + radius * math.sin(a)
+        y = ey - radius * math.cos(a)
+        points.append((x, y))
+    pygame.draw.lines(surface, TORQUE_ARROW, False, points, 3)
+
+    tip, prev = points[-1], points[-3]
+    angle = math.atan2(tip[1] - prev[1], tip[0] - prev[0])
+    head_size = 9
+    left = (
+        tip[0] - head_size * math.cos(angle - 0.5),
+        tip[1] - head_size * math.sin(angle - 0.5),
+    )
+    right = (
+        tip[0] - head_size * math.cos(angle + 0.5),
+        tip[1] - head_size * math.sin(angle + 0.5),
+    )
+    pygame.draw.line(surface, TORQUE_ARROW, left, tip, 3)
+    pygame.draw.line(surface, TORQUE_ARROW, right, tip, 3)
+
+
 # --- Main loop ---
 running = True
 dt_ms = 0  # milliseconds the previous frame took
@@ -130,6 +202,8 @@ while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_r:
+            reset_episode()
 
     # Read keyboard
     keys = pygame.key.get_pressed()
