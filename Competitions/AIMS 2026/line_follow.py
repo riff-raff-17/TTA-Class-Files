@@ -4,8 +4,13 @@ from ugot import ugot
 
 ROBOT_IP = "192.168.1.53"
 
-THRESHOLD = 180
-STRIP_HEIGHT_FRAC = 0.15  # bottom 15% of the frame
+# PD steering tuning
+KP = 0.5
+KD = 0.2
+
+MAX_SPEED = 28
+MIN_SPEED = 15
+MAX_STEERING_FOR_SLOWDOWN = 15
 
 
 def connect_robot(ip=ROBOT_IP):
@@ -17,7 +22,6 @@ def connect_robot(ip=ROBOT_IP):
 
 
 def find_centroid_in_strip(mask_strip, min_area=80):
-    """Find centroid of largest white blob in a single strip mask."""
     contours, _ = cv2.findContours(
         mask_strip, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
     )
@@ -40,17 +44,6 @@ def find_centroid_in_strip(mask_strip, min_area=80):
 def get_line_position_multistrip(
     frame, threshold=180, num_strips=3, scan_height_frac=0.4, scan_width_frac=0.75
 ):
-    """
-    Slices the bottom scan_height_frac of the frame into num_strips horizontal
-    bands, and restricts the search to the center scan_width_frac of the
-    frame's width (1.0 = full width, 0.5 = center half, etc).
-    Returns a list of (cx, cy_in_frame, weight) for strips where the
-    line was found, ordered closest-to-robot first, plus a debug overlay,
-    plus a (scan_left, scan_right, strip_top, strip_bottom) tuple describing
-    the bottom strip's region in full-frame coordinates (handy for other
-    detectors, e.g. a red-dot stop signal, that should look in the same
-    spot).
-    """
     height, width = frame.shape[:2]
 
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -74,22 +67,68 @@ def get_line_position_multistrip(
     cv2.line(overlay, (scan_left, 0), (scan_left, height), (255, 0, 255), 1)
     cv2.line(overlay, (scan_right, 0), (scan_right, height), (255, 0, 255), 1)
 
-    results = []  # closest strip (bottom) first
+    results = []
     bottom_strip_bounds = None
     for i in range(num_strips):
         strip_bottom = height - i * strip_h
         strip_top = height - (i + 1) * strip_h
         strip_top = max(strip_top, scan_top)
 
-    centroid = find_centroid_in_strip(strip_mask)
-    if centroid is None:
-        return None, mask, overlay
+        if i == 0:
+            bottom_strip_bounds = (scan_left, scan_right, strip_top, strip_bottom)
 
-    cx, cy_local = centroid
-    cy_global = strip_top + cy_local
-    cv2.circle(overlay, (cx, cy_global), 6, (0, 0, 255), -1)
+        strip_mask = mask[strip_top:strip_bottom, :]
+        centroid = find_centroid_in_strip(strip_mask)
 
-    return (cx, cy_global), mask, overlay
+        cv2.rectangle(overlay, (0, strip_top), (width, strip_bottom), (255, 0, 0), 1)
+
+        if centroid is not None:
+            cx, cy_local = centroid
+            cy_global = strip_top + cy_local
+            weight = num_strips - i
+            results.append((cx, cy_global, weight))
+            cv2.circle(overlay, (cx, cy_global), 6, (0, 0, 255), -1)
+            cv2.putText(
+                overlay,
+                str(i),
+                (cx + 10, cy_global),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.5,
+                (0, 255, 0),
+                1,
+            )
+
+    return results, mask, overlay, bottom_strip_bounds
+
+
+def compute_steering_error(results, frame_width):
+    """
+    Combines multi-strip centroids into a single weighted steering error
+    and an estimate of curvature (difference between near and far strips).
+    """
+    if not results:
+        return None, None
+
+    center_x = frame_width // 2
+
+    total_weight = sum(w for _, _, w in results)
+    weighted_error = sum((cx - center_x) * w for cx, _, w in results) / total_weight
+
+    near_cx = results[0][0]
+    far_cx = results[-1][0]
+    curvature = far_cx - near_cx  # positive = line curving right ahead
+
+    return weighted_error, curvature
+
+
+def pd_steering(error, curvature, kp, kd):
+    return kp * error + kd * curvature
+
+
+def speed_for_steering(steering, max_speed, min_speed, max_steering_for_slowdown):
+    """Scales speed down as steering magnitude increases."""
+    turn_fraction = min(abs(steering) / max_steering_for_slowdown, 1.0)
+    return max_speed - turn_fraction * (max_speed - min_speed)
 
 
 def main():
