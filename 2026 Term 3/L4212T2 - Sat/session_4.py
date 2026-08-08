@@ -128,7 +128,7 @@ while running:
     if game_state == "playing":
         move_timer += clock.get_time()
 
-        if move_timer >= MOVE_INTERVAL:
+        if move_timer >= move_interval:
             move_timer = 0
 
             # Moving the whole snake on a fixed tick
@@ -140,15 +140,20 @@ while running:
             if new_head == food:
                 score += 1
                 food = random_empty_cell(snake)
+                move_interval = max(MIN_MOVE_INTERVAL, move_interval - SPEEDUP_PER_FOOD)
             else:
                 snake.pop()
 
             if hits_wall(new_head) or hits_self(snake):
-                game_over = True
+                game_state = "game_over"
 
     # --- 3. Draw the frame ---
     screen.fill(BACKGROUND_COLOR)
     draw_grid(screen)
+
+    if game_state == "menu":
+        draw_centered_text(screen, "SNAKE", big_font, TEXT_COLOR, y_offset=-30)
+        draw_centered_text(screen, "Press SPACE to start", font, TEXT_COLOR, y_offset=20)
 
     # Food
     food_rect = (food[0] * CELL_SIZE, food[1] * CELL_SIZE, CELL_SIZE, CELL_SIZE)
