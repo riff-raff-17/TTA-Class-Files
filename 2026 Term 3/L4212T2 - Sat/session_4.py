@@ -1,4 +1,5 @@
 import random
+
 import pygame
 
 # --- Setup ---
@@ -25,8 +26,12 @@ HEAD_COLOR = (0, 255, 100)
 FOOD_COLOR = (220, 60, 60)
 TEXT_COLOR = (255, 255, 255)
 
-# font = pygame.font.Font("font_path.ttf", 28)
 font = pygame.font.SysFont(None, 28)
+big_font = pygame.font.SysFont(None, 48)
+
+STARTING_MOVE_INTERVAL = 150  # milliseconds per grid step at the start of a run
+MIN_MOVE_INTERVAL = 60  # the fastest the snake is ever allowed to move
+SPEEDUP_PER_FOOD = 5  # how many ms faster the snake gets per food eaten
 
 
 def draw_grid(surface):
@@ -58,22 +63,38 @@ def hits_self(snake_body):
     """True if the head's position already appears elsewhere in the body."""
     return snake_body[0] in snake_body[1:]
 
-# --- Representing the snake as a list of segments ---
-# Each segment is an (x, y) GRID-coordinate tuple (not pixels). The first
-# element is the head.
-snake = [(10, 10), (9, 10), (8, 10)]  # head first
 
-# Choosing a direction with a single variable.
-direction = (1, 0)  # (dx, dy) -- moving right
+def draw_centered_text(surface, text, font_obj, color, y_offset=0):
+    """Render text centered horizontally (and vertically, plus an offset)."""
+    text_surface = font_obj.render(text, True, color)
+    rect = text_surface.get_rect(
+        center=(WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2 + y_offset)
+    )
+    surface.blit(text_surface, rect)
 
-# --- Decoupling movement speed from the frame rate ---
-move_timer = 0
-MOVE_INTERVAL = 150  # milliseconds per grid step
 
+# Game state variables
+game_state = "menu"  # Three values: "menu", "playing", "game_over".
+
+snake = []
+direction = (1, 0)
 score = 0
-food = random_empty_cell(snake)
+food = (0, 0)
+move_timer = 0
+move_interval = STARTING_MOVE_INTERVAL
 
-game_over = False
+
+def reset_game():
+    """Reinitialise every variable that changes during play."""
+    global snake, direction, score, food, move_timer, move_interval
+
+    snake = [(10, 10), (9, 10), (8, 10)]
+    direction = (1, 0)
+    score = 0
+    food = random_empty_cell(snake)
+    move_timer = 0
+    move_interval = STARTING_MOVE_INTERVAL
+
 
 running = True
 
@@ -84,21 +105,27 @@ while running:
             running = False
 
         elif event.type == pygame.KEYDOWN:
-            # Preventing an immediate reversal.
-            # Each check rejects the new direction if it's the exact
-            # opposite of the current one, so you can't turn left
-            # while already moving right.
-            if event.key == pygame.K_UP and direction != (0, 1):
-                direction = (0, -1)
-            elif event.key == pygame.K_DOWN and direction != (0, -1):
-                direction = (0, 1)
-            elif event.key == pygame.K_LEFT and direction != (1, 0):
-                direction = (-1, 0)
-            elif event.key == pygame.K_RIGHT and direction != (-1, 0):
-                direction = (1, 0)
+            if game_state == "menu":
+                if event.key == pygame.K_SPACE:
+                    reset_game()
+                    game_state = "playing"
+
+            elif game_state == "playing":
+                if event.key == pygame.K_UP and direction != (0, 1):
+                    direction = (0, -1)
+                elif event.key == pygame.K_DOWN and direction != (0, -1):
+                    direction = (0, 1)
+                elif event.key == pygame.K_LEFT and direction != (1, 0):
+                    direction = (-1, 0)
+                elif event.key == pygame.K_RIGHT and direction != (-1, 0):
+                    direction = (1, 0)
+
+            elif game_state == "game_over" and event.key == pygame.K_r:
+                reset_game()
+                game_state = "playing"
 
     # --- 2. Update state ---
-    if not game_over:
+    if game_state == "playing":
         move_timer += clock.get_time()
 
         if move_timer >= MOVE_INTERVAL:
