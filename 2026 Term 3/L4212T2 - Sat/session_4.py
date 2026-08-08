@@ -153,25 +153,38 @@ while running:
 
     if game_state == "menu":
         draw_centered_text(screen, "SNAKE", big_font, TEXT_COLOR, y_offset=-30)
-        draw_centered_text(screen, "Press SPACE to start", font, TEXT_COLOR, y_offset=20)
+        draw_centered_text(
+            screen, "Press SPACE to start", font, TEXT_COLOR, y_offset=20
+        )
 
-    # Food
-    food_rect = (food[0] * CELL_SIZE, food[1] * CELL_SIZE, CELL_SIZE, CELL_SIZE)
-    pygame.draw.rect(screen, FOOD_COLOR, food_rect)
+    elif game_state == "playing":
+        food_rect = (food[0] * CELL_SIZE, food[1] * CELL_SIZE, CELL_SIZE, CELL_SIZE)
+        pygame.draw.rect(screen, FOOD_COLOR, food_rect)
 
-    # Snake
-    for index, segment in enumerate(snake):
-        seg_x, seg_y = segment
-        rect = (seg_x * CELL_SIZE, seg_y * CELL_SIZE, CELL_SIZE, CELL_SIZE)
-        color = HEAD_COLOR if index == 0 else SNAKE_COLOR
-        pygame.draw.rect(screen, color, rect)
+        for index, segment in enumerate(snake):
+            seg_x, seg_y = segment
+            rect = (seg_x * CELL_SIZE, seg_y * CELL_SIZE, CELL_SIZE, CELL_SIZE)
+            color = HEAD_COLOR if index == 0 else SNAKE_COLOR
+            pygame.draw.rect(screen, color, rect)
 
-    score_surface = font.render(f"Score: {score}", True, TEXT_COLOR)
-    screen.blit(score_surface, (10, 10))
+        score_surface = font.render(f"Score: {score}", True, TEXT_COLOR)
+        screen.blit(score_surface, (10, 10))
 
-    if game_over:
-        over_surface = font.render("GAME OVER", True, TEXT_COLOR)
-        screen.blit(over_surface, (WINDOW_WIDTH // 2 - 50, WINDOW_HEIGHT // 2 - 14))
+    elif game_state == "game_over":
+        for index, segment in enumerate(snake):
+            seg_x, seg_y = segment
+            rect = (seg_x * CELL_SIZE, seg_y * CELL_SIZE, CELL_SIZE, CELL_SIZE)
+            color = HEAD_COLOR if index == 0 else SNAKE_COLOR
+            pygame.draw.rect(screen, color, rect)
+
+        draw_centered_text(screen, "GAME OVER", big_font, TEXT_COLOR, y_offset=-30)
+        draw_centered_text(
+            screen,
+            f"Score: {score}  --  Press R to restart",
+            font,
+            TEXT_COLOR,
+            y_offset=20,
+        )
 
     pygame.display.flip()
     clock.tick(FPS)
