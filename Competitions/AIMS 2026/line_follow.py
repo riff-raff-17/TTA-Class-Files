@@ -2,15 +2,24 @@ import cv2
 import numpy as np
 from ugot import ugot
 
-ROBOT_IP = "192.168.1.53"
+ROBOT_IP = "192.168.1.54"
+
+DIR_LEFT = 2
+DIR_RIGHT = 3
 
 # PD steering tuning
 KP = 0.5
 KD = 0.2
 
-MAX_SPEED = 28
-MIN_SPEED = 15
-MAX_STEERING_FOR_SLOWDOWN = 15
+MAX_SPEED = 25
+MIN_SPEED = 7    
+MAX_STEERING_FOR_SLOWDOWN = 18
+
+# -- Smoothing / anti-jerk tuning --
+ERROR_DEADBAND = 10
+SMOOTHING_ALPHA = 0.3
+MAX_STEERING_DELTA = 15
+MAX_SPEED_DELTA = 4
 
 
 def connect_robot(ip=ROBOT_IP):
@@ -110,7 +119,6 @@ def compute_steering_error(results, frame_width):
         return None, None
 
     center_x = frame_width // 2
-
     total_weight = sum(w for _, _, w in results)
     weighted_error = sum((cx - center_x) * w for cx, _, w in results) / total_weight
 
@@ -131,33 +139,60 @@ def speed_for_steering(steering, max_speed, min_speed, max_steering_for_slowdown
     return max_speed - turn_fraction * (max_speed - min_speed)
 
 
+def turn(got, steering, forward_speed):
+    """
+    Steer left/right while moving.
+    steering < 0 -> turn left, steering > 0 -> turn right.
+    """
+    if steering < 0:
+        got.transform_move_turn(0, int(forward_speed), DIR_LEFT, int(-steering))
+    else:
+        got.transform_move_turn(0, int(forward_speed), DIR_RIGHT, int(steering))
+
+    print(f"[turn] steering={steering:.1f}, forward_speed={forward_speed}")
+
+
+def stop(got):
+    got.transform_stop()
+    print("[stop]")
+
+
 def main():
     got = connect_robot()
 
-    while True:
-        frame = got.read_camera_data()
-        if not frame:
-            print("Failed to grab frame")
-            break
+    try:
+        while True:
+            frame = got.read_camera_data()
+            if not frame:
+                print("Failed to grab frame")
+                break
 
-        nparr = np.frombuffer(frame, np.uint8)
-        data = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-        if data is None:
-            print("Failed to decode frame")
-            continue
+            nparr = np.frombuffer(frame, np.uint8)
+            data = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+            if data is None:
+                print("Failed to decode frame")
+                continue
 
-        centroid, mask, overlay = get_line_position_single_strip(data)
+            results, mask, overlay, _ = get_line_position_multistrip(data)
+            error, curvature = compute_steering_error(results, data.shape[1])
 
-        if centroid is not None:
-            print(f"line centroid: {centroid}")
-        else:
-            print("line not found")
+            if error is not None:
+                steering = pd_steering(error, curvature, kp=KP, kd=KD)
+                speed = speed_for_steering(steering, MAX_SPEED, MIN_SPEED, MAX_STEERING_FOR_SLOWDOWN)
+                turn(got, steering, speed)
+            else:
+                print("Line not found -- stopping")
+                stop(got)
 
-        cv2.imshow("Webcam Feed", overlay)
-        cv2.imshow("Mask", mask)
+            cv2.imshow("Webcam Feed", overlay)
+            cv2.imshow("Mask", mask)
 
-        if cv2.waitKey(1) & 0xFF == ord("q"):
-            break
+            if cv2.waitKey(1) & 0xFF == ord("q"):
+                stop(got)
+                break
+
+    except KeyboardInterrupt:
+        stop(got)
 
     cv2.destroyAllWindows()
 

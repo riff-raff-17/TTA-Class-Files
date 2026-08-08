@@ -128,58 +128,38 @@ void Armor::use(Player& player) { player.equipArmor(this); }
 class Room {
 private:
     string name;
-    string description;
-    map<string, Room*> exits; // raw pointer for now
-
+    vector<unique_ptr<Item>> items;
 public:
     // Constructor - how the Room is created
-    Room(string n, string desc) : name(move(n)), description(move(desc)) {}
+    explicit Room(string n) : name(move(n)) {}
 
-    // Create exits for the Room
-    void setExit(const string &direction, Room *room) { exits[direction] = room; }
+    void addItem(unique_ptr<Item> item) { items.push_back(move(item)); }
 
-    Room *getExit(const string &direction) const
-    {
-        auto it = exits.find(direction);
-        return it == exits.end() ? nullptr : it->second;
+    unique_ptr<Item> takeItem(const string& itemName) {
+        auto it = find_if(items.begin(), items.end(), 
+            [&](const unique_ptr<Item>& i) { return i->getName() == itemName; });
+        if (it == items.end()) return nullptr;
+        unique_ptr<Item> found = move(*it);
+        items.erase(it);
+        return found;
     }
 
-    void describe() const
-    {
+    void describe() const {
         cout << "\n== " << name << " ==" << endl;
-        cout << description << endl;
-        if (!exits.empty())
-        {
-            cout << "Exits:";
-            for (const auto &[dir, room] : exits)
-                cout << " " << dir;
-            cout << endl;
+        if (items.empty()) {
+            cout << "There is nothing of interest here." << endl;
+        } else {
+            cout << "Items here:" << endl;
+            for (const auto& i : items) cout << "  - " << i->getName() << endl;
         }
     }
-
-    const string &getName() const { return name; }
 };
 
-int main()
-{
-    cout << "=== Navigation ===" << endl;
-
-    // main() owns every room, via unique_ptr. The raw Room* pointers handed
-    // out via setExit()/getExit() are safe because this vector outlives them.
-    vector<unique_ptr<Room>> rooms;
-    rooms.push_back(make_unique<Room>("Entrance Hall", 
-        "A dusty stone hall. Torches flicker on the walls."));
-    rooms.push_back(make_unique<Room>("Armory", "Racks of rusted weapons line the walls."));
-    rooms.push_back(make_unique<Room>("Damp Cave", "Water drops somewhere in the darkness."));
-
-    rooms[0]->setExit("north", rooms[1].get());
-    rooms[1]->setExit("south", rooms[0].get());
-    rooms[1]->setExit("east", rooms[2].get());
-    rooms[2]->setExit("west", rooms[1].get());
-
-    Room* current = rooms[0].get();
-    current->describe();
-    cout << "\nCommands: look, go <direction>, quit" << endl;
+int main() {
+    Room armory("Armory");
+    armory.addItem(make_unique<Weapon>("Iron Sword", 50, 15));
+    armory.addItem(make_unique<Armor>("Leather Armor", 40, 5));
+    armory.addItem(make_unique<Potion>("Fire Potion", 10, 20));
 
     string line;
     while (true) {
