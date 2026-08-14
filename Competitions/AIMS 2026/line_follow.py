@@ -160,6 +160,9 @@ def stop(got):
 def main():
     got = connect_robot()
 
+    smoothed_steering = 0.0
+    smoothed_speed = float(MAX_SPEED)
+
     try:
         while True:
             frame = got.read_camera_data()
@@ -177,12 +180,40 @@ def main():
             error, curvature = compute_steering_error(results, data.shape[1])
 
             if error is not None:
-                steering = pd_steering(error, curvature, kp=KP, kd=KD)
-                speed = speed_for_steering(steering, MAX_SPEED, MIN_SPEED, MAX_STEERING_FOR_SLOWDOWN)
-                turn(got, steering, speed)
+                # Ignore small errors so the robot doesn't hunt/wobble around center
+                if abs(error) < ERROR_DEADBAND:
+                    error = 0.0
+
+                raw_steering = pd_steering(error, curvature, kp=KP, kd=KD)
+                raw_speed = speed_for_steering(raw_steering, MAX_SPEED, MIN_SPEED, MAX_STEERING_FOR_SLOWDOWN)
+
+                # Low-pass filter (EMA) to smooth out frame-to-frame vision noise
+                target_steering = (
+                    SMOOTHING_ALPHA * raw_steering
+                    + (1 - SMOOTHING_ALPHA) * smoothed_steering
+                )
+                target_speed = (
+                    SMOOTHING_ALPHA * raw_speed
+                    + (1 - SMOOTHING_ALPHA) * smoothed_speed
+                )
+
+                # Rate-limit how much steering/speed can change in a single frame
+                steering_delta = max(
+                    -MAX_STEERING_DELTA,
+                    min(MAX_STEERING_DELTA, target_steering - smoothed_steering),
+                )
+                speed_delta = max(
+                    -MAX_SPEED_DELTA, min(MAX_SPEED_DELTA, target_speed - smoothed_speed)
+                )
+                smoothed_steering += steering_delta
+                smoothed_speed += speed_delta
+
+                turn(got, smoothed_steering, smoothed_speed)
             else:
                 print("Line not found -- stopping")
                 stop(got)
+                smoothed_steering = 0.0
+                smoothed_speed = float(MAX_SPEED)
 
             cv2.imshow("Webcam Feed", overlay)
             cv2.imshow("Mask", mask)
@@ -190,7 +221,6 @@ def main():
             if cv2.waitKey(1) & 0xFF == ord("q"):
                 stop(got)
                 break
-
     except KeyboardInterrupt:
         stop(got)
 
