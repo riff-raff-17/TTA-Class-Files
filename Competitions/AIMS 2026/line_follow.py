@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+
 import cv2
 import numpy as np
 from ugot import ugot
@@ -7,19 +9,27 @@ ROBOT_IP = "192.168.1.54"
 DIR_LEFT = 2
 DIR_RIGHT = 3
 
-# PD steering tuning
-KP = 0.5
-KD = 0.2
 
-MAX_SPEED = 25
-MIN_SPEED = 7    
-MAX_STEERING_FOR_SLOWDOWN = 18
+@dataclass
+class Config:
+    # Speed
+    max_speed: float = 25  # speed on straights (steering near 0)
+    min_speed: float = 7  # speed floor on sharp turns
+    steering_at_min_speed: float = 25  # |steering| at which speed bottoms out
 
-# -- Smoothing / anti-jerk tuning --
-ERROR_DEADBAND = 10
-SMOOTHING_ALPHA = 0.3
-MAX_STEERING_DELTA = 15
-MAX_SPEED_DELTA = 4
+    # PD steering
+    kp: float = 0.5
+    kd: float = 0.2
+
+    # Smoothing / anti-jerk
+    error_deadband: float = 10  # px; errors smaller than this are treated as 0
+    smoothing_alpha: float = 0.3  # EMA weight for new readings (0-1, lower = smoother)
+    max_steering_delta: float = 15  # max change in steering allowed per frame
+    max_speed_delta: float = 4  # max change in speed allowed per frame
+    max_steering: float = 70  # hard ceiling on |steering| sent to hardware
+
+    # Lost-line handling
+    lost_line_threshold: int = 5  # frames with no line before triggering search
 
 
 def connect_robot(ip=ROBOT_IP):
@@ -28,6 +38,11 @@ def connect_robot(ip=ROBOT_IP):
     got.open_camera()
     got.transform_adaption_control(False)
     return got
+
+
+def preprocess_frame(frame):
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    return cv2.GaussianBlur(gray, (5, 5), 0)
 
 
 def find_centroid_in_strip(mask_strip, min_area=80):
@@ -51,12 +66,10 @@ def find_centroid_in_strip(mask_strip, min_area=80):
 
 
 def get_line_position_multistrip(
-    frame, threshold=180, num_strips=3, scan_height_frac=0.4, scan_width_frac=0.75
+    frame, blurred, threshold=180, num_strips=3, scan_height_frac=0.4, scan_width_frac=0.75
 ):
     height, width = frame.shape[:2]
 
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
     _, mask = cv2.threshold(blurred, threshold, 255, cv2.THRESH_BINARY)
 
     scan_w = int(width * scan_width_frac)
@@ -77,14 +90,10 @@ def get_line_position_multistrip(
     cv2.line(overlay, (scan_right, 0), (scan_right, height), (255, 0, 255), 1)
 
     results = []
-    bottom_strip_bounds = None
     for i in range(num_strips):
         strip_bottom = height - i * strip_h
         strip_top = height - (i + 1) * strip_h
         strip_top = max(strip_top, scan_top)
-
-        if i == 0:
-            bottom_strip_bounds = (scan_left, scan_right, strip_top, strip_bottom)
 
         strip_mask = mask[strip_top:strip_bottom, :]
         centroid = find_centroid_in_strip(strip_mask)
@@ -107,7 +116,7 @@ def get_line_position_multistrip(
                 1,
             )
 
-    return results, mask, overlay, bottom_strip_bounds
+    return results, mask, overlay
 
 
 def compute_steering_error(results, frame_width):
@@ -133,9 +142,9 @@ def pd_steering(error, curvature, kp, kd):
     return kp * error + kd * curvature
 
 
-def speed_for_steering(steering, max_speed, min_speed, max_steering_for_slowdown):
+def speed_for_steering(steering, max_speed, min_speed, steering_at_min_speed):
     """Scales speed down as steering magnitude increases."""
-    turn_fraction = min(abs(steering) / max_steering_for_slowdown, 1.0)
+    turn_fraction = min(abs(steering) / steering_at_min_speed, 1.0)
     return max_speed - turn_fraction * (max_speed - min_speed)
 
 
@@ -157,11 +166,17 @@ def stop(got):
     print("[stop]")
 
 
+def search_for_line():
+    print("[search_for_line] line lost, searching...")
+
+
 def main():
+    cfg = Config()
     got = connect_robot()
 
     smoothed_steering = 0.0
-    smoothed_speed = float(MAX_SPEED)
+    smoothed_speed = float(cfg.max_speed)
+    lost_line_count = 0
 
     try:
         while True:
@@ -176,44 +191,62 @@ def main():
                 print("Failed to decode frame")
                 continue
 
-            results, mask, overlay, _ = get_line_position_multistrip(data)
+            blurred = preprocess_frame(data)
+            results, mask, overlay = get_line_position_multistrip(data, blurred)
             error, curvature = compute_steering_error(results, data.shape[1])
 
             if error is not None:
+                lost_line_count = 0
+
                 # Ignore small errors so the robot doesn't hunt/wobble around center
-                if abs(error) < ERROR_DEADBAND:
+                if abs(error) < cfg.error_deadband:
                     error = 0.0
 
-                raw_steering = pd_steering(error, curvature, kp=KP, kd=KD)
-                raw_speed = speed_for_steering(raw_steering, MAX_SPEED, MIN_SPEED, MAX_STEERING_FOR_SLOWDOWN)
+                raw_steering = pd_steering(error, curvature, kp=cfg.kp, kd=cfg.kd)
+                raw_speed = speed_for_steering(
+                    raw_steering, cfg.max_speed, cfg.min_speed, cfg.steering_at_min_speed
+                )
 
                 # Low-pass filter (EMA) to smooth out frame-to-frame vision noise
                 target_steering = (
-                    SMOOTHING_ALPHA * raw_steering
-                    + (1 - SMOOTHING_ALPHA) * smoothed_steering
+                    cfg.smoothing_alpha * raw_steering
+                    + (1 - cfg.smoothing_alpha) * smoothed_steering
                 )
                 target_speed = (
-                    SMOOTHING_ALPHA * raw_speed
-                    + (1 - SMOOTHING_ALPHA) * smoothed_speed
+                    cfg.smoothing_alpha * raw_speed + (1 - cfg.smoothing_alpha) * smoothed_speed
                 )
 
                 # Rate-limit how much steering/speed can change in a single frame
                 steering_delta = max(
-                    -MAX_STEERING_DELTA,
-                    min(MAX_STEERING_DELTA, target_steering - smoothed_steering),
+                    -cfg.max_steering_delta,
+                    min(cfg.max_steering_delta, target_steering - smoothed_steering),
                 )
                 speed_delta = max(
-                    -MAX_SPEED_DELTA, min(MAX_SPEED_DELTA, target_speed - smoothed_speed)
+                    -cfg.max_speed_delta,
+                    min(cfg.max_speed_delta, target_speed - smoothed_speed),
                 )
                 smoothed_steering += steering_delta
                 smoothed_speed += speed_delta
 
+                smoothed_steering = max(
+                    -cfg.max_steering, min(cfg.max_steering, smoothed_steering)
+                )
+
+                print(
+                    f"error={error:.1f}, curvature={curvature:.1f}, "
+                    f"raw_steering={raw_steering:.1f}, steering={smoothed_steering:.1f}, "
+                    f"speed={smoothed_speed:.1f}"
+                )
                 turn(got, smoothed_steering, smoothed_speed)
             else:
-                print("Line not found -- stopping")
-                stop(got)
-                smoothed_steering = 0.0
-                smoothed_speed = float(MAX_SPEED)
+                lost_line_count += 1
+                print(f"Line not found in any strip ({lost_line_count} frames)")
+
+                if lost_line_count >= cfg.lost_line_threshold:
+                    stop(got)
+                    search_for_line()
+                    smoothed_steering = 0.0
+                    smoothed_speed = float(cfg.max_speed)
 
             cv2.imshow("Webcam Feed", overlay)
             cv2.imshow("Mask", mask)
