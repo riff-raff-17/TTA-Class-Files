@@ -5,6 +5,11 @@ import numpy as np
 from ugot import ugot
 
 ROBOT_IP = "192.168.1.54"
+SHOW_DEBUG = True 
+
+CUBE_MODEL_PATH = "cube_model.pt"
+CUBE_LABELS_PATH = "cube_labels.json"
+UNRIPE_LABEL = "unripe"  # must exactly match the label string in cube_labels.json
 
 DIR_LEFT = 2
 DIR_RIGHT = 3
@@ -31,6 +36,21 @@ class Config:
     # Lost-line handling
     lost_line_threshold: int = 5  # frames with no line before triggering search
 
+    # End-of-course stop box
+    # min fraction of the *whole* frame area the white box's bounding blob
+    # must cover to trigger a stop
+    stop_box_min_area_frac: float = 0.55
+    # min (blob area / bounding-box area); keeps a scattered handful of
+    # bright blobs from being mistaken for one solid box
+    stop_box_min_extent: float = 0.6
+
+    # Cube classification
+    # min softmax confidence required to act on an "unripe" prediction
+    cube_confidence_threshold: float = 0.75
+
+    unripe_cooldown_frames: int = 30
+
+
 
 def connect_robot(ip=ROBOT_IP):
     got = ugot.UGOT()
@@ -44,6 +64,19 @@ def preprocess_frame(frame):
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     return cv2.GaussianBlur(gray, (5, 5), 0)
 
+
+def detect_stop_box(frame, blurred, threshold=200, min_area_frac=0.35, min_extent=0.6):
+    height, width = frame.shape[:2]
+    frame_area = height * width
+
+    _, mask = cv2.threshold(blurred, threshold, 255, cv2.THRESH_BINARY)
+
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    if not contours:
+        return False, None, mask
+
+    largest = max(contours, key=cv2.contourArea)
+    area = cv2.contourArea(largest)
 
 def find_centroid_in_strip(mask_strip, min_area=80):
     contours, _ = cv2.findContours(
