@@ -1,5 +1,6 @@
-import pygame
 import math
+
+import pygame
 
 # --- Setup ---
 pygame.init()
@@ -27,7 +28,7 @@ LINK_WIDTH = 14  # thickness of each link
 JOINT_RADIUS = 8
 GOAL_Y = PIVOT[1] - LINK_LENGTH  # goal line: one link-length above the pivot
 
-# --- Physics constants ---
+# --- Physics constants (matching Gymnasium's real Acrobot-v1 values) ---
 # These describe the physical system in "physics units" (meters, kg, etc.),
 # completely separate from the pixel units used for drawing above.
 LINK_MASS_1 = 1.0  # mass of link 1 [kg]
@@ -38,27 +39,31 @@ LINK_MOI = 1.0  # moment of inertia for both links
 PHYS_LINK_LENGTH = 1.0  # link length in physics units (not pixels!)
 GRAVITY = 9.8
 DT = 0.02  # physics timestep in seconds (small = more stable)
-TORQUE_MAGNITUDE = 1.0
-GOAL_HEIGHT = 1.0
-GYM_STEP_DT = 0.2
-MAX_STEPS = 500
+TORQUE_MAGNITUDE = 1.0  # matches Gymnasium's AVAIL_TORQUE = [-1, 0, +1]
+GOAL_HEIGHT = 1.0  # win when -cos(theta1) - cos(theta1+theta2) > this
+GYM_STEP_DT = 0.2  # one Gymnasium "step" = this many seconds of physics
+MAX_STEPS = 500  # matches Gymnasium's Acrobot-v1 episode time limit
 
-# Acrobot state (radians, rad/s).
+# Acrobot state (radians, rad/s). theta1 from straight down, ccw positive.
+# theta2 is relative to link 1 (the "elbow bend").
+# Starting near hanging straight down, like the real Gymnasium environment.
 theta1 = 0.0
 theta2 = 0.0
 theta1_dot = 0.0  # angular velocity of joint 1
 theta2_dot = 0.0  # angular velocity of joint 2
 
-step_count = 0
-episode_over = False
-result_text = ""
-time_since_gym_step = 0.0
+step_count = 0  # number of Gymnasium-equivalent steps elapsed
+episode_over = False  # True once goal is reached or time runs out
+result_text = ""  # what to display once the episode ends
+time_since_gym_step = 0.0  # tracks progress toward the next counted step
 
-best_steps = None  # fastest solve
+best_steps = None  # fastest solve this session (None until first win)
 
 
 def reset_episode():
-    """Reset the acrobot to hanging straight down and clear episode state."""
+    """Reset the acrobot to hanging straight down and clear episode state.
+    best_steps is intentionally NOT touched here, since it should persist
+    across resets."""
     global theta1, theta2, theta1_dot, theta2_dot
     global step_count, episode_over, result_text, time_since_gym_step
 
@@ -74,14 +79,18 @@ def reset_episode():
 
 
 def tip_height(theta1, theta2):
-    """Height of the free end above the pivot, in physics units."""
+    """Height of the free end above the pivot, in physics units (link
+    lengths). This is Gymnasium's exact termination check:
+    -cos(theta1) - cos(theta1 + theta2) > 1.0 means "goal reached"."""
     return -math.cos(theta1) - math.cos(theta1 + theta2)
 
 
 def compute_accelerations(theta1, theta2, theta1_dot, theta2_dot, torque):
     """The acrobot's equations of motion: given the current state and the
     applied torque, return the angular accelerations (theta1_dotdot,
-    theta2_dotdot)."""
+    theta2_dotdot). These come from Lagrangian mechanics for a double
+    pendulum with a motor at the second joint - same equations Gymnasium
+    uses internally."""
     m1, m2 = LINK_MASS_1, LINK_MASS_2
     l1 = PHYS_LINK_LENGTH
     lc1, lc2 = LINK_COM_POS_1, LINK_COM_POS_2
@@ -113,6 +122,10 @@ def compute_accelerations(theta1, theta2, theta1_dot, theta2_dot, torque):
 
 
 def step_physics(theta1, theta2, theta1_dot, theta2_dot, torque, dt):
+    """Advance the system state by one timestep using semi-implicit Euler:
+    update velocities first, then use the *new* velocities to update angles.
+    This is much simpler than RK4 and plenty stable for this system at a
+    small dt."""
     theta1_dotdot, theta2_dotdot = compute_accelerations(
         theta1, theta2, theta1_dot, theta2_dot, torque
     )
@@ -159,7 +172,8 @@ def draw_acrobot(surface, theta1, theta2):
 
 def draw_torque_arrow(surface, theta1, theta2, torque):
     """Small curved arrow at the elbow showing which way torque is
-    currently being applied."""
+    currently being applied. Purely cosmetic - makes the otherwise
+    invisible 'applied_torque' variable visible to the player."""
     if torque == 0:
         return
 
@@ -168,6 +182,8 @@ def draw_torque_arrow(surface, theta1, theta2, torque):
     radius = 30
     direction = -1 if torque > 0 else 1
 
+    # Build a short arc out of small line segments, then add an
+    # arrowhead at the leading end (in the direction of rotation).
     span = math.radians(130)
     n_segments = 20
     points = []
@@ -205,7 +221,13 @@ while running:
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_r:
             reset_episode()
 
-    # Read keyboard
+    # Read keyboard input once per frame. Left/right arrows apply torque at
+    # the actuated joint (magnitude matches Gymnasium's discrete action
+    # space). Note the mapping below is swapped relative to the sign you
+    # might expect: with our angle convention (x = pivot_x + L*sin(theta)),
+    # positive torque visually swings the arm toward screen-left, so we map
+    # the LEFT arrow to +1 and RIGHT to -1 to match what the player sees.
+    # Holding nothing (or both) applies zero torque.
     keys = pygame.key.get_pressed()
     if keys[pygame.K_LEFT] and not keys[pygame.K_RIGHT]:
         applied_torque = TORQUE_MAGNITUDE
@@ -214,6 +236,13 @@ while running:
     else:
         applied_torque = 0.0
 
+    # Update physics. We step with a fixed-size DT (not the variable frame
+    # time) because physics simulations are more stable and predictable with
+    # a constant timestep - we just run as many small steps as needed to
+    # cover however long the frame took. The torque read above is held
+    # constant across all of this frame's physics substeps.
+    # Once the episode is over (goal reached or time limit hit) we stop
+    # stepping the physics, so the final pose stays frozen on screen.
     if not episode_over:
         time_to_simulate += dt_ms / 1000.0
         while time_to_simulate >= DT:
@@ -223,6 +252,9 @@ while running:
             time_to_simulate -= DT
             time_since_gym_step += DT
 
+            # Count a "step" every GYM_STEP_DT seconds of simulated time,
+            # matching how Gymnasium counts one step per env.step() call
+            # (each of which advances physics by 0.2s internally).
             while time_since_gym_step >= GYM_STEP_DT:
                 time_since_gym_step -= GYM_STEP_DT
                 step_count += 1
@@ -243,10 +275,33 @@ while running:
     screen.fill(WHITE)
     pygame.draw.line(screen, GOAL_GRAY, (0, GOAL_Y), (WIDTH, GOAL_Y), 2)
     draw_acrobot(screen, theta1, theta2)
+    if not episode_over:
+        draw_torque_arrow(screen, theta1, theta2, applied_torque)
+
+    step_text = font.render(f"Step: {step_count}/{MAX_STEPS}", True, (0, 0, 0))
+    screen.blit(step_text, (10, 10))
+
+    if best_steps is not None:
+        best_text = small_font.render(f"Best: {best_steps} steps", True, TEXT_GRAY)
+        screen.blit(best_text, (10, 46))
+
+    instructions = small_font.render(
+        "Left/Right arrows to swing - reach the line!", True, TEXT_GRAY
+    )
+    screen.blit(instructions, (10, HEIGHT - 28))
+
+    if episode_over:
+        msg = font.render(result_text, True, (0, 0, 0))
+        msg_rect = msg.get_rect(center=(WIDTH // 2, 40))
+        screen.blit(msg, msg_rect)
+
+        hint = small_font.render("Press R to try again", True, TEXT_GRAY)
+        hint_rect = hint.get_rect(center=(WIDTH // 2, 70))
+        screen.blit(hint, hint_rect)
+
     pygame.display.flip()
 
     # Cap framerate
     dt_ms = clock.tick(FPS)
-    elapsed_time += dt_ms / 1000.0
 
 pygame.quit()

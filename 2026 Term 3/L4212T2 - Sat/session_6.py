@@ -26,15 +26,29 @@ status_font = pygame.font.SysFont(None, 28)
 class Button:
     """A clickable rectangle with a label and an on_click callback."""
 
-    def __init__(self, x, y, width, height, label, on_click):
+    def __init__(self, x, y, width, height, label, on_click, image_path=None):
         self.rect = pygame.Rect(x, y, width, height)
         self.label = label
         self.on_click = on_click
         self.is_pressed = False
 
+        self.image = None
+        if image_path is not None:
+            loaded_image = pygame.image.load(image_path).convert_alpha()
+            self.image = pygame.transform.smoothscale(loaded_image, (width, height))
+
     def draw(self, surface):
         mouse_pos = pygame.mouse.get_pos()
         is_hovering = self.rect.collidepoint(mouse_pos)
+
+        if self.image is not None:
+            surface.blit(self.image, self.rect)
+            if self.is_pressed and is_hovering:
+                overlay_alpha = 90
+            elif is_hovering:
+                overlay_alpha = 50
+            else:
+                overlay_alpha = 0
 
         if self.is_pressed and is_hovering:
             color = BUTTON_PRESSED_COLOR
@@ -75,6 +89,7 @@ def count_click():
     global status, click_count
     click_count += 1
     status = f"Clicked {click_count} time(s)"
+
 
 buttons = [
     Button(40, 40, 130, 50, "Say Hi", say_hello),
