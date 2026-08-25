@@ -1,4 +1,6 @@
 #include <array>
+#include <cctype>
+#include <fstream>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -79,6 +81,35 @@ namespace wordle
         return result;
     }
 
+    // Reads one word per line from 'path', keeping only clean 5-letter
+    // entries (lowercased, trailing whitespace stripped).
+    std::vector<std::string> loadWords(const std::string &path)
+    {
+        std::vector<std::string> words;
+        std::ifstream in(path);
+        std::string line;
+        while (std::getline(in, line))
+        {
+            while (!line.empty() && !std::isalpha(static_cast<unsigned char>(line.back())))
+            {
+                line.pop_back();
+            }
+            if (line.size() == 5)
+            {
+                std::transform(line.begin(), line.end(), line.begin(), ::tolower);
+                words.push_back(line);
+            }
+        }
+        return words;
+    }
+
+    // Picks the best next guess using letter-position frequency scoring.
+    std::string bestGuess(const std::vector<std::string> &candidates)
+    {
+        if (candidates.empty())
+            return "";
+    }
+
 } // namespace wordle
 
 // Test it out
@@ -116,13 +147,26 @@ namespace
 
 int main() 
 { 
-    std::cout << "---Feedback---" << std::endl;
+    std::cout << "Loading words.txt... \n\n";
 
-    // Examples
-    check("crane", "grape", "BGGBG");
-    check("sassy", "abyss", "YYBGY");
-    check("world", "world", "GGGGG");
-    check("chimp", "world", "BBBBB");
-    check("robot", "moose", "BGBYB");
-    check("silks", "songs", "GBBBG");
+    auto words = wordle::loadWords("words.txt");
+    if (words.empty())
+    {
+        std::cerr << "Could not load words.txt. Make sure it's in this directory,\n"
+                        "one 5-letter word per line.\n";
+        return 1;
+    }
+    std::cout << "Loaded " << words.size() << " words from words.txt\n";
+
+    // is the file actually 5-letter words
+    bool allFiveLetters = true;
+    for (const auto &w : words)
+    {
+        if (w.size() != 5)
+        {
+            allFiveLetters = false;
+            break;
+        }
+    }
+    std::cout << "All entries exactly 5 letters: " << (allFiveLetters ? "yes" : "NO") << "\n";
 }

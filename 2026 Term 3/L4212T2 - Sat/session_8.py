@@ -1,3 +1,5 @@
+import os
+
 import pygame
 
 pygame.init()
@@ -20,8 +22,16 @@ COOKIE_PRESSED_COLOR = (245, 188, 104)
 CHIP_COLOR = (110, 64, 24)
 
 big_font = pygame.font.SysFont(None, 48)
-# big_font = pygame.font.Font("[PATH]/font.ttf", 48)
 
+# --- Load custom images ---
+ASSETS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")
+
+BACKGROUND_IMAGE = None
+COOKIE_IMAGE = None
+
+background_path = os.path.join(ASSETS_DIR, "background.png")
+if os.path.exists(background_path):
+    BACKGROUND_IMAGE = pygame.image.load(background_path).convert()
 
 class CookieButton:
     def __init__(self, center_x, center_y, radius, on_click):
