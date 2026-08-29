@@ -149,10 +149,29 @@ namespace wordle
 
 } // namespace wordle
 
-// Test it out
-
 namespace
 {
+
+    wordle::Feedback parseFeedback(const std::string &input)
+    {
+        wordle::Feedback fb{};
+        for (int i = 0; i < 5; i++)
+        {
+            switch (std::tolower(static_cast<unsigned char>(input[i])))
+            {
+                case 'g':
+                    fb[i] = wordle::Color::Green;
+                    break;
+                case 'y':
+                    fb[i] = wordle::Color::Yellow;
+                    break;
+                default:
+                    fb[i] = wordle::Color::Gray;
+                    break;
+            }
+        }
+        return fb;
+    }
 
     std::string feedbackToString(const wordle::Feedback &fb)
     {
@@ -193,10 +212,60 @@ int main()
                         "one 5-letter word per line.\n";
         return 1;
     }
-    std::cout << "Loaded " << words.size() << " words from words.txt\n";
+    std::cout << "Loaded " << words.size() << " words from words.txt\n\n";
 
-    std::string firstGuess = wordle::bestGuess(words);
-    std::cout << "Suggested first guess: " << firstGuess << "\n";
+    std::vector<std::string> candidates = words;
 
+    std::cout << "=== Wordle Solver ===\n";
+    std::cout << "Play Wordle! After each guess write what you guessed\n";
+    std::cout << "and the feedback colors (G=green, Y=yellow, B=gray).\n";
+    std::cout << "Example: guessed 'crane', got gray/gray/green/yellow/gray -> type BBGYB\n\n";
 
+    std::cout << "Suggested first guess: " << wordle::bestGuess(candidates) << "\n\n";
+
+    while (candidates.size() > 1)
+    {
+        std::string guess, feedbackStr;
+
+        std::cout << "Word you guessed: ";
+        if (!(std::cin >> guess))
+            break;
+        std::cout << "Feedback (5 letters G/Y/B): ";
+        if (!(std::cin >> feedbackStr))
+            break;
+
+        std::transform(guess.begin(), guess.end(), guess.begin(), ::tolower);
+        if (guess.size() != 5 || feedbackStr.size() != 5)
+        {
+            std::cout << "Please enter exactly 5 characters for both.\n\n";
+            continue;
+        }
+
+        wordle::Feedback fb = parseFeedback(feedbackStr);
+        candidates = wordle::filterCandidates(candidates, guess, fb);
+
+        std::cout << candidates.size() << " word(s) still possible.\n";
+        if (candidates.size() <= 10 && !candidates.empty())
+        {
+            std::cout << "  ";
+            for (const auto &w : candidates)
+                std::cout << w << " ";
+            std::cout << "\n";
+        }
+
+        if (candidates.empty())
+        {
+            std::cout << "No candidates left. The answer might not be in words.txt.\n";
+            break;
+        }
+        if (candidates.size() > 1)
+        {
+            std::cout << "Suggested next guess: " << wordle::bestGuess(candidates) << "\n\n";
+        }
+    }
+
+    if (candidates.size() == 1)
+    {
+        std::cout << "Solved! The word is: " << candidates.front() << "\n";
+    }
 }
