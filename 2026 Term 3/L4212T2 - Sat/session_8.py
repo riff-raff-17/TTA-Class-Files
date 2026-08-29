@@ -15,23 +15,82 @@ FPS = 60
 
 BACKGROUND_COLOR = (255, 244, 214)
 TEXT_COLOR = (70, 45, 20)
+SUBTEXT_COLOR = (140, 100, 60)
+BUTTON_TEXT_COLOR = (255, 255, 255)
 
 COOKIE_COLOR = (216, 148, 60)
 COOKIE_HOVER_COLOR = (232, 168, 82)
 COOKIE_PRESSED_COLOR = (245, 188, 104)
 CHIP_COLOR = (110, 64, 24)
 
+BUTTON_IDLE_COLOR = (120, 100, 235)
+BUTTON_HOVER_COLOR = (145, 128, 250)
+BUTTON_PRESSED_COLOR = (175, 160, 255)
+BUTTON_DISABLED_COLOR = (205, 200, 215)
+
 big_font = pygame.font.SysFont(None, 48)
+status_font = pygame.font.SysFont(None, 30)
 
-# --- Load custom images ---
-ASSETS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")
+# Cache of button fonts by size, so fit_text() isn't creating a new
+# object every single frame.
 
-BACKGROUND_IMAGE = None
-COOKIE_IMAGE = None
+_font_cache = {}
 
-background_path = os.path.join(ASSETS_DIR, "background.png")
-if os.path.exists(background_path):
-    BACKGROUND_IMAGE = pygame.image.load(background_path).convert()
+
+def get_font(size):
+    if size not in _font_cache:
+        _font_cache[size] = pygame.font.SysFont(None, size)
+    return _font_cache[size]
+
+
+def fit_text(text, max_width, start_size=22, min_size=12):
+    """Render text at the largest size (down to min_size) that still fits
+    within max_width pixels, so a long label never spills outside its
+    button."""
+    size = start_size
+    while size > min_size:
+        font = get_font(size)
+        surface = font.render(text, True, BUTTON_TEXT_COLOR)
+        if surface.get_width() <= max_width:
+            return surface
+        size -= 2
+    return get_font(min_size).render(text, True, BUTTON_TEXT_COLOR)
+
+# Button class
+class Button:
+    def __init__(self, x, y, width, height, label, on_click):
+        self.rect = pygame.Rect(x, y, width, height)
+        self.label = label
+        self.on_click = on_click
+        self.is_pressed = False
+        self.enabled = True
+
+    def draw(self, surface):
+        mouse_pos = pygame.mouse.get_pos()
+        is_hovering = self.rect.collidepoint(mouse_pos)
+
+        if not self.enabled:
+            color = BUTTON_DISABLED_COLOR
+        elif self.is_pressed and is_hovering:
+            color = BUTTON_PRESSED_COLOR
+        elif is_hovering:
+            color = BUTTON_HOVER_COLOR
+        else:
+            color = BUTTON_IDLE_COLOR
+
+        pygame.draw.rect(surface, color, self.rect, border_radius=6)
+
+        text_surface = fit_text(self.label, self.rect.width - 20)
+        surface.blit(text_surface, text_surface.get_rect(center=self.rect.center))
+
+    def handle_event(self, event):
+        if not self.enabled:
+            return
+        if event.type == pygame.MOUSEBUTTONDOWN and self.rect.collidepoint(event.pos):
+            self.is_pressed = True
+            self.on_click()
+        elif event.type == pygame.MOUSEBUTTONUP:
+            self.is_pressed = False
 
 class CookieButton:
     def __init__(self, center_x, center_y, radius, on_click):
@@ -75,12 +134,21 @@ class CookieButton:
             self.is_pressed = False
 
 
-cookies = 0
+cookies = 0.0  # float now: passive income adds tiny fractional amounts each frame
+cookies_per_second = 0
+cursor_cost = 10
 
 
 def click_cookie():
     global cookies
     cookies += 1
+
+def buy_cursor():
+    global cookies, cookies_per_second, cursor_cost
+    if cookies >= cursor_cost:
+        cookies -= cursor_cost
+        cookies_per_second += 1
+        cursor_cost = round(cursor_cost * 1.15)
 
 
 cookie = CookieButton(260, 220, 70, click_cookie)
