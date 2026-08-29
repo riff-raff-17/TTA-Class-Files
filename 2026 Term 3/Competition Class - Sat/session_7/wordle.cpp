@@ -108,6 +108,43 @@ namespace wordle
     {
         if (candidates.empty())
             return "";
+        
+        std::array<std::array<int, 26>, 5> freq{};
+        for (const auto &word : candidates)
+        {
+            for (int i = 0; i < 5; i++)
+            {
+                freq[i][word[i] - 'a']++;
+            }
+        }
+
+        auto scoreWord = [&](const std::string &word)
+        {
+            double score = 0.0;
+            std::array<bool, 26> seenLetter{};
+            for (int i = 0; i < 5; i++)
+            {
+                int letter = word[i] - 'a';
+                score += freq[i][letter];
+                if (seenLetter[letter])
+                    score *= 0.5; // repeats add less info
+                seenLetter[letter] = true;
+            }
+            return score;
+        };
+
+        std::string best = candidates[0];
+        double bestScore = -1.0;
+        for (const auto &word : candidates)
+        {
+            double s = scoreWord(word);
+            if (s > bestScore)
+            {
+                bestScore = s;
+                best = word;
+            }
+        }
+        return best;
     }
 
 } // namespace wordle
@@ -158,15 +195,8 @@ int main()
     }
     std::cout << "Loaded " << words.size() << " words from words.txt\n";
 
-    // is the file actually 5-letter words
-    bool allFiveLetters = true;
-    for (const auto &w : words)
-    {
-        if (w.size() != 5)
-        {
-            allFiveLetters = false;
-            break;
-        }
-    }
-    std::cout << "All entries exactly 5 letters: " << (allFiveLetters ? "yes" : "NO") << "\n";
+    std::string firstGuess = wordle::bestGuess(words);
+    std::cout << "Suggested first guess: " << firstGuess << "\n";
+
+
 }
