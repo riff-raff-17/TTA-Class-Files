@@ -152,29 +152,40 @@ def buy_cursor():
 
 
 cookie = CookieButton(260, 220, 70, click_cookie)
+cursor_button = Button(170, 400, 180, 55, "", buy_cursor)
 
 # Main loop
 running = True
 
 while running:
-    clock.tick(FPS)
+    dt = clock.tick(FPS)  # milliseconds since the last frame
 
     # --- 1. Handle events ---
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
         cookie.handle_event(event)
+        cursor_button.handle_event(event)
 
     # --- 2. Update state ---
-    # Nothing yet
+    cookies += cookies_per_second * (dt / 1000)
+
+    cursor_button.label = f"Buy Cursor +1/s (Cost: {cursor_cost})"
+    cursor_button.enabled = cookies >= cursor_cost
 
     # --- 3. Draw the frame ---
     screen.fill(BACKGROUND_COLOR)
 
     cookie.draw(screen)
+    cursor_button.draw(screen)
 
-    count_surface = big_font.render(f"{cookies} cookies", True, TEXT_COLOR)
+    count_surface = big_font.render(f"{int(cookies)} cookies", True, TEXT_COLOR)
     screen.blit(count_surface, (20, 20))
+
+    rate_surface = status_font.render(
+        f"{cookies_per_second} per second", True, SUBTEXT_COLOR
+    )
+    screen.blit(rate_surface, (20, 70))
 
     pygame.display.flip()
 
