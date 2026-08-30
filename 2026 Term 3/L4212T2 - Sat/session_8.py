@@ -1,4 +1,5 @@
-import os
+import math
+import random
 
 import pygame
 
@@ -27,6 +28,8 @@ BUTTON_IDLE_COLOR = (120, 100, 235)
 BUTTON_HOVER_COLOR = (145, 128, 250)
 BUTTON_PRESSED_COLOR = (175, 160, 255)
 BUTTON_DISABLED_COLOR = (205, 200, 215)
+
+CURSOR_COLOR = (100, 80, 210)
 
 big_font = pygame.font.SysFont(None, 48)
 status_font = pygame.font.SysFont(None, 30)
@@ -133,6 +136,12 @@ class CookieButton:
         elif event.type == pygame.MOUSEBUTTONUP:
             self.is_pressed = False
 
+ORBIT_SPEED = 0.02  # degrees per millisecond
+CURSOR_ARROW_SHAPE = [(14, 0), (-6, -7), (-2, 0), (-6, 7)]  # local arrowhead
+
+RING_BASE_RADIUS = 95  # distance of the first ring from the cookie's center
+RING_STEP = 34  # how much farther out each new ring sits
+CURSOR_ARC_SPACING = 55  # target pixel gap between cursors along a ring
 
 cookies = 0.0  # float now: passive income adds tiny fractional amounts each frame
 cookies_per_second = 0
@@ -147,8 +156,8 @@ def buy_cursor():
     global cookies, cookies_per_second, cursor_cost
     if cookies >= cursor_cost:
         cookies -= cursor_cost
-        cookies_per_second += 1
-        cursor_cost = round(cursor_cost * 1.15)
+        cookies_per_second += 112312
+        cursor_cost = round(cursor_cost * -1.15)
 
 
 cookie = CookieButton(260, 220, 70, click_cookie)
