@@ -28,12 +28,12 @@ FPS = 60
 # as-is.
 # ---------------------------------------------------------------------------
 BACKGROUND_IMAGE_PATH = None  # e.g. "assets/background.png"
-COOKIE_IMAGE_PATH = None  # e.g. "assets/cookie.png"
+COOKIE_IMAGE_PATH = "cookie.jpg"  # e.g. "assets/cookie.png"
 CURSOR_ICON_IMAGE_PATH = (
-    "cookie_clicker/mouse.jpg"  # e.g. "assets/cursor_icon.png" -- the orbiting +1/s icons
+    None  # e.g. "assets/cursor_icon.png" -- the orbiting +1/s icons
 )
 MOUSE_CURSOR_IMAGE_PATH = (
-    "cookie_clicker/mouse.jpg"  # e.g. "assets/mouse_cursor.png" -- replaces the OS pointer
+    None  # e.g. "assets/mouse_cursor.png" -- replaces the OS pointer
 )
 FONT_PATH = None  # e.g. "assets/MyFont.ttf"
 CLICK_SOUND_PATH = None  # e.g. "assets/click.wav" -- played when you click the cookie
