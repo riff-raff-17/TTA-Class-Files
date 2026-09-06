@@ -95,7 +95,19 @@ for color in colors:
 # --- If/elif/else conditionals ---
 t.clear()
 t.penup()
-t.goto(0, 0)
+t.goto(-150, 0)
 t.pendown()
+
+for i in range(12):
+    if i % 3 == 0:
+        t.color("firebrick")
+    elif i % 3 == 1:
+        t.color("goldenrod")
+    else:  #  anything left over must be remainder 2
+        t.color("forestgreen")
+    draw_polygon(turtle_obj=t, side_length=50, n_sides=3)
+    t.penup()
+    t.forward(35)
+    t.pendown()
 
 turtle.done()
