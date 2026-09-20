@@ -31,11 +31,23 @@ def draw_text(surface, text, pos, font, color=TEXT, center=False):
     surface.blit(image, rect)  # "blit" means paste it on
 
 
+def draw_button(surface, rect, label, font):
+    """Draw one rounded box with a label in the middle of it."""
+    pygame.draw.rect(surface, BTN, rect, border_radius=8)
+    pygame.draw.rect(surface, BTN_EDGE, rect, width=2, border_radius=8)
+    draw_text(surface, label, rect.center, font, TEXT, center=True)
+
+
 def main():
     pygame.init()  # start Pygame
     screen = pygame.display.set_mode((WINDOW_W, WINDOW_H))  # make the window
     pygame.display.set_caption("Robot Control Panel")  # title bar text
     clock = pygame.time.Clock()  # used to limit the speed
+
+    # Fonts
+    font_big = pygame.font.SysFont("arial", 22, bold=True)
+    font = pygame.font.SysFont("arial", 17)
+    font_small = pygame.font.SysFont("arial", 13)
 
     print("Window open. Press Esc or click the X to quit.")
 
