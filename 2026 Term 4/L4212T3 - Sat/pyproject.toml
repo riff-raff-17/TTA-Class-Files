@@ -1,5 +1,5 @@
 [project]
-name = "term-2"
+name = "l4212t3-sat"
 version = "0.1.0"
 description = "Add your description here"
 authors = [
@@ -7,14 +7,15 @@ authors = [
 ]
 requires-python = ">=3.13"
 dependencies = [
+    "arcade>=3.3.3",
     "ipykernel>=7.3.0",
+    "notebook>=7.6.2",
     "pip>=26.2.1",
-    "ugot>=0.2.13",
 ]
 
 [project.scripts]
-term-2 = "term_2:main"
+l4212t3-sat = "l4212t3_sat:main"
 
 [build-system]
-requires = ["uv_build>=0.12.5,<0.13.0"]
+requires = ["uv_build>=0.12.10,<0.13.0"]
 build-backend = "uv_build"
