@@ -6,7 +6,29 @@ import pygame
 WINDOW_W, WINDOW_H = 900, 520  # window size in pixels
 FPS = 60  # how many times per second we redraw
 
+PANEL_W = 340  # the control panel fills the left of the window
+
+# The whole color scheme lives here
 BG = (24, 26, 32)  # a color is (red, green, blue), 0-255
+PANEL = (34, 37, 46)
+BTN = (52, 57, 70)
+BTN_EDGE = (80, 86, 104)
+TEXT = (232, 234, 240)
+MUTED = (138, 145, 163)
+ACCENT = (80, 205, 165)
+
+# DRAWING HELPERS
+
+
+def draw_text(surface, text, pos, font, color=TEXT, center=False):
+    """Draw some text and return nothing."""
+    image = font.render(text, True, color)  # turn the string into a picture
+    rect = image.get_rect()  # a Rect the same size as it
+    if center:
+        rect.center = pos
+    else:
+        rect.topleft = pos
+    surface.blit(image, rect)  # "blit" means paste it on
 
 
 def main():
@@ -33,3 +55,19 @@ def main():
             elif event.type == pygame.KEYDOWN:  # a key was pressed
                 if event.key == pygame.K_ESCAPE:
                     running = False
+
+        # --- 2. update ----
+        # Nothing to update yet. Later this is where the robot commands
+        # and sensor readings will live.
+
+        # --- 3. draw ---
+        screen.fill(BG)  # paint over everything from last frame
+        pygame.display.flip()  # show the result on the actual screen
+
+    print("Closing down.")
+    pygame.quit()
+
+
+# This line means "only run main() if this file was started directly".
+if __name__ == "__main__":
+    main()
