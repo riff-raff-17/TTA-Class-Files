@@ -62,6 +62,7 @@ def main():
         # Pygame collects everything the user did since last time into
         # a list of events. We look at each one in turn.
         for event in pygame.event.get():
+            
             if event.type == pygame.QUIT:  # the X button
                 running = False
             elif event.type == pygame.KEYDOWN:  # a key was pressed
