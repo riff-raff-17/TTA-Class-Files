@@ -1,0 +1,225 @@
+import arcade
+
+# ----- the board, measured in CELLS -----
+COLS = 10
+ROWS = 20
+
+# ----- the board, measured in PIXELS -----
+CELL = 30  # one cell is 30x30 pixels
+BOARD_LEFT = 40  # the board's bottom-left corner
+BOARD_BOTTOM = 40
+BOARD_WIDTH = COLS * CELL  # derived, never typed (Part 1, Section 2)
+BOARD_HEIGHT = ROWS * CELL
+
+PANEL_X = BOARD_LEFT + BOARD_WIDTH + 30  # left edge of the side-panel text
+SCREEN_WIDTH = BOARD_LEFT + BOARD_WIDTH + 250
+SCREEN_HEIGHT = BOARD_BOTTOM + BOARD_HEIGHT + 40
+TITLE = "Block Blast 2 the Tortoising"
+
+BOARD_COLOR = (20, 24, 32)
+GRID_LINE_COLOR = (44, 50, 64)
+
+# Paint colors
+PALETTE = [
+    (0, 220, 230),
+    (240, 210, 0),
+    (170, 70, 240),
+    (60, 210, 70),
+    (230, 50, 60),
+    (50, 100, 240),
+    (245, 150, 30),
+]
+
+
+def make_grid():
+    """An empty board: ROWS lists of COLS cells each. Row 0 is the BOTTOM row."""
+    return [[None] * COLS for _ in range(ROWS)]
+
+
+def cell_rect(col, row):
+    """Cell -> pixels. A 1px gap on each side makes cells read as separate tiles."""
+    x = BOARD_LEFT + col * CELL
+    y = BOARD_BOTTOM + row * CELL
+    return arcade.LBWH(x + 1, y + 1, CELL - 2, CELL - 2)
+
+
+def pixel_to_cell(x, y):
+    """Pixels -> cell. Returns (col, row), or None if the point is off the board."""
+    col = int((x - BOARD_LEFT) // CELL)
+    row = int((y - BOARD_BOTTOM) // CELL)
+    if 0 <= col < COLS and 0 <= row < ROWS:
+        return col, row
+    return None
+
+
+def count_filled(grid):
+    total = 0
+    for row in grid:
+        for cell in row:
+            if cell is not None:
+                total += 1
+    return total
+
+
+class GridDemo(arcade.Window):
+    def __init__(self):
+        super().__init__(SCREEN_WIDTH, SCREEN_HEIGHT, TITLE)
+        self.background_color = arcade.color.DARK_SLATE_GRAY
+
+        self.grid = make_grid()
+        self.color_index = 0
+        self.hover = None  # the (col, row) under the mouse, or None
+
+        # Hand-placed cells that prove the mapping. Note the order: grid[ROW][COL]
+        self.grid[0][0] = PALETTE[4]  # bottom-left
+        self.grid[0][COLS - 1] = PALETTE[5]  # bottom-right
+        self.grid[ROWS - 1][0] = PALETTE[1]  # top-left
+        self.grid[ROWS - 1][COLS - 1] = PALETTE[3]  # top-right
+
+        # A row with one gap: a line clear waiting to happen.
+        for col in range(COLS):
+            if col != 6:
+                self.grid[2][col] = PALETTE[0]
+
+        # Text objects
+        self.readout = arcade.Text(
+            "", PANEL_X, SCREEN_HEIGHT - 70, arcade.color.WHITE, 15
+        )
+        self.index_text = arcade.Text(
+            "", PANEL_X, SCREEN_HEIGHT - 96, arcade.color.GOLD, 15
+        )
+        self.count_text = arcade.Text(
+            "", PANEL_X, SCREEN_HEIGHT - 140, arcade.color.WHITE, 14
+        )
+        self.paint_label = arcade.Text(
+            "paint color:", PANEL_X, SCREEN_HEIGHT - 186, arcade.color.WHITE, 14
+        )
+        help_lines = ["click: paint / erase", "SPACE: next color", "C: clear the board"]
+        self.help_texts = [
+            arcade.Text(line, PANEL_X, 120 - i * 24, arcade.color.LIGHT_GRAY, 13)
+            for i, line in enumerate(help_lines)
+        ]
+
+        # Axis labels, so you can see that row 0 is at the BOTTOM.
+        self.row_labels = [
+            arcade.Text(
+                str(row),
+                BOARD_LEFT - 8,
+                BOARD_BOTTOM + row * CELL + CELL / 2,
+                arcade.color.LIGHT_GRAY,
+                10,
+                anchor_x="right",
+                anchor_y="center",
+            )
+            for row in range(ROWS)
+        ]
+
+        self.col_labels = [
+            arcade.Text(
+                str(col),
+                BOARD_LEFT + col * CELL + CELL / 2,
+                BOARD_BOTTOM - 8,
+                arcade.color.LIGHT_GRAY,
+                10,
+                anchor_x="center",
+                anchor_y="top",
+            )
+            for col in range(COLS)
+        ]
+
+    # --- Input ---
+
+    def on_mouse_motion(self, x, y, dx, dy):
+        self.hover = pixel_to_cell(x, y)
+
+    def on_mouse_press(self, x, y, button, modifiers):
+        cell = pixel_to_cell(x, y)
+        if cell is None:
+            return  # clicked off the board
+        col, row = cell
+        if self.grid[row][col] is None:
+            self.grid[row][col] = PALETTE[self.color_index]
+        else:
+            self.grid[row][col] = None
+
+    def on_key_press(self, symbol, modifiers):
+        if symbol == arcade.key.SPACE:
+            self.color_index = (self.color_index + 1) % len(PALETTE)
+        elif symbol == arcade.key.C:
+            self.grid = make_grid()
+        elif symbol == arcade.key.ESCAPE:
+            self.close()
+
+    # --- Drawing ---
+    def _draw_board(self):
+        board = arcade.LBWH(BOARD_LEFT, BOARD_BOTTOM, BOARD_WIDTH, BOARD_HEIGHT)
+        arcade.draw_rect_filled(board, BOARD_COLOR)
+
+        for col in range(1, COLS):
+            x = BOARD_LEFT + col * CELL
+            arcade.draw_line(
+                x, 
+                BOARD_BOTTOM,
+                x,
+                BOARD_BOTTOM + BOARD_HEIGHT,
+                GRID_LINE_COLOR,
+                line_width = 1,
+            )
+
+        for row in range(1, ROWS):
+            y = BOARD_BOTTOM + row * CELL
+            arcade.draw_line(
+                BOARD_LEFT,
+                y,
+                BOARD_LEFT + BOARD_WIDTH,
+                y,
+                GRID_LINE_COLOR,
+                line_width=1,
+            )
+
+    def _draw_cells(self):
+        # Two nested loops: every row and every column in that row
+        for row in range(ROWS):
+            for col in range(COLS):
+                color = self.grid[row][col]
+                if color is not None:
+                    arcade.draw_rect_filled(cell_rect(col, row), color)
+
+    def on_draw(self):
+        self.clear()
+        self._draw_board()
+        self._draw_cells()
+
+        if self.hover is not None:
+            col, row = self.hover
+            arcade.draw_rect_outline(
+                cell_rect(col, row), arcade.color.WHITE, border_width=2
+            )
+
+        board = arcade.LBWH(BOARD_LEFT, BOARD_BOTTOM, BOARD_WIDTH, BOARD_HEIGHT)
+        arcade.draw_rect_outline(board, arcade.color.LIGHT_GRAY, border_width=2)
+
+        for label in self.row_labels + self.col_labels:
+            label.draw()
+
+        # --- side panel ---
+        if self.hover is None:
+            self.readout.value = "hover over the board"
+            self.index_text.value = ""
+        else:
+            col, row = self.hover
+            self.readout.value = f"col {col}, row {row}"
+            self.index_text.value = f"grid[{row}][{col}]"
+        self.count_text.value = f"{count_filled(self.grid)} cells filled"
+
+        self.readout.draw()
+        self.index_text.draw()
+        self.count_text.draw()
+        self.paint_label.draw()
+        swatch = arcade.LBWH(PANEL_X + 110, SCREEN_HEIGHT - 192, 24, 24)
+        arcade.draw_rect_filled(swatch, PALETTE[self.color_index])
+        for text in self.help_texts:
+            text.draw()
+
+window = GridDemo()
+arcade.run()
