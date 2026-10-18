@@ -1,0 +1,11 @@
+[project]
+name = "l5310t2-sun"
+version = "0.1.0"
+requires-python = ">=3.13"
+dependencies = [
+    "ipykernel>=7.4.0",
+    "matplotlib>=3.11.2",
+    "numpy>=2.5.4",
+    "pip>=26.2.1",
+    "scikit-learn>=1.9.1",
+]
