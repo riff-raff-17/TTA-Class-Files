@@ -119,15 +119,50 @@ class Tetris(arcade.Window):
             return True
         return False
 
+    def _try_rotate(self):
+        if self.piece_kind == "O":
+            return False
+        rotated = rotate_cw(self.piece_cells)
+        for kick in KICKS:
+            if fits(self.grid, rotated, self.piece_col + kick, self.piece_row):
+                self.piece_cells = rotated
+                self.piece_col += kick
+                return True
+        return False
+
     def _step_down(self):
         if not self._try_move(0, -1):
             self._lock_piece()
+
+    def _hard_drop(self):
+        while fits(self.grid, self.piece_cells, self.piece_col, self.piece_row - 1):
+            self.piece_row -= 1
+        self._lock_piece()
 
     # ------------------------------------------------ input
 
     def on_key_press(self, symbol, modifiers):
         if symbol == arcade.key.ESCAPE:
             self.close()
+            return
+
+        if self.game_over:
+            return
+
+        if symbol in (arcade.key.LEFT, arcade.key.A):
+            self._try_move(-1, 0)
+        elif symbol in (arcade.key.RIGHT, arcade.key.D):
+            self._try_move(1, 0)
+        elif symbol in (arcade.key.UP, arcade.key.W):
+            self._try_rotate()
+        elif symbol in (arcade.key.DOWN, arcade.key.S):
+            self.soft_drop = True
+        elif symbol == arcade.key.SPACE:
+            self._hard_drop()
+
+    def on_key_release(self, symbol, modifiers):
+        if symbol in (arcade.key.DOWN, arcade.key.S):
+            self.soft_drop = False
 
     # ------------------------------------------------ update
 
@@ -135,6 +170,7 @@ class Tetris(arcade.Window):
         if self.game_over:
             return
 
+        interval = SOFT_DROP_EVERY if self.soft_drop else BASE_FALL_EVERY
         self.fall_timer += delta_time
         if self.fall_timer >= BASE_FALL_EVERY:
             self.fall_timer -= BASE_FALL_EVERY
