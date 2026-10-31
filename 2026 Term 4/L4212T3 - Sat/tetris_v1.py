@@ -172,8 +172,8 @@ class Tetris(arcade.Window):
 
         interval = SOFT_DROP_EVERY if self.soft_drop else BASE_FALL_EVERY
         self.fall_timer += delta_time
-        if self.fall_timer >= BASE_FALL_EVERY:
-            self.fall_timer -= BASE_FALL_EVERY
+        if self.fall_timer >= interval:
+            self.fall_timer -= interval
             self._step_down()
 
     # ------------------------------------------------ drawing
