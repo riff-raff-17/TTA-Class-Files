@@ -1,16 +1,3 @@
-"""Milestone 2 - falling pieces.
-
-New in this step:
-  - the seven pieces, each a list of (col, row) offsets around its own (0, 0) cell
-  - piece_blocks() turns offsets + position into real grid cells
-  - fits() is the one question the whole game keeps asking: "is this spot free?"
-  - gravity: a timer moves the piece down one row every BASE_FALL_EVERY seconds
-  - when the piece can't go down any more it LOCKS into the grid and a new one spawns
-
-There are no controls yet, so pieces pile up in the middle of the board
-until a new one has no room. Then the game stops.
-"""
-
 import random
 
 import arcade
@@ -26,17 +13,19 @@ BOARD_HEIGHT = ROWS * CELL
 
 SCREEN_WIDTH = BOARD_LEFT + BOARD_WIDTH + 250
 SCREEN_HEIGHT = BOARD_BOTTOM + BOARD_HEIGHT + 40
-TITLE = "Tetris - milestone 2: falling pieces"
+TITLE = "Tetris"
 
 BOARD_COLOR = (20, 24, 32)
 GRID_LINE_COLOR = (44, 50, 64)
 
 # ----- gravity -----
 BASE_FALL_EVERY = 0.6  # seconds per row (levels will speed this up later)
+SOFT_DROP_EVERY = 0.04 
 
 # ----- pieces -----
 SPAWN_COL = COLS // 2 - 1
-SPAWN_ROW = ROWS - 2  # offsets go up to row +1, so the top block sits on row 19
+SPAWN_ROW = ROWS - 2
+KICKS = [0, -1, 1, -2, 2]
 
 SHAPES = {
     "I": [(-1, 0), (0, 0), (1, 0), (2, 0)],
@@ -66,18 +55,20 @@ def make_grid():
 
 
 def piece_blocks(cells, col, row):
-    """Offsets like (-1, 0) plus the piece's position give real grid cells."""
     return [(col + c, row + r) for c, r in cells]
 
 
 def fits(grid, cells, col, row):
-    """True if every block is inside the board AND on an empty cell."""
     for x, y in piece_blocks(cells, col, row):
         if x < 0 or x >= COLS or y < 0 or y >= ROWS:
             return False
-        if grid[y][x] is not None:  # check bounds FIRST, or grid[y][x] can crash
+        if grid[y][x] is not None:
             return False
     return True
+
+def rotate_cw(cells):
+    """(c, r) -> (r, -c): a quarter turn clockwise around the (0, 0) cell."""
+    return [(r, -c) for c, r in cells]
 
 
 # ---------------------------------------------------------------- drawing helpers
@@ -97,12 +88,12 @@ class Tetris(arcade.Window):
         self.grid = make_grid()
         self.fall_timer = 0.0
         self.game_over = False
+        self.soft_drop = False  # True while Down is held
         self._spawn_piece()
 
     # ------------------------------------------------ pieces
 
     def _spawn_piece(self):
-        """A random piece at the top. (Milestone 6 replaces random.choice with a 7-bag.)"""
         self.piece_kind = random.choice(list(SHAPES))
         self.piece_cells = SHAPES[self.piece_kind]
         self.piece_col = SPAWN_COL
@@ -114,7 +105,6 @@ class Tetris(arcade.Window):
             print("Game over. Press Esc to close.")
 
     def _lock_piece(self):
-        """Copy the piece's color into the grid."""
         color = COLORS[self.piece_kind]
         for col, row in piece_blocks(self.piece_cells, self.piece_col, self.piece_row):
             self.grid[row][col] = color
@@ -147,8 +137,6 @@ class Tetris(arcade.Window):
 
         self.fall_timer += delta_time
         if self.fall_timer >= BASE_FALL_EVERY:
-            # Subtract instead of setting to 0: leftover time carries over,
-            # so the rhythm stays even when a frame arrives a little late.
             self.fall_timer -= BASE_FALL_EVERY
             self._step_down()
 
