@@ -1,3 +1,16 @@
+"""Milestone 4 - the rules: clearing lines, score and levels.
+
+New in this step:
+  - clear_full_rows(): full rows disappear and everything above drops down
+  - score: line clears (more for several at once, times the level), plus
+    a little for soft and hard drops
+  - every LINES_PER_LEVEL lines the level goes up and gravity gets faster
+  - a side panel with score / level / lines, and a GAME OVER screen
+
+It's a real game now. When it ends, press Esc and run it again;
+restarting without closing the window comes in milestone 5.
+"""
+
 import random
 
 import arcade
@@ -14,17 +27,17 @@ BOARD_HEIGHT = ROWS * CELL
 PANEL_X = BOARD_LEFT + BOARD_WIDTH + 30
 SCREEN_WIDTH = BOARD_LEFT + BOARD_WIDTH + 250
 SCREEN_HEIGHT = BOARD_BOTTOM + BOARD_HEIGHT + 40
-TITLE = "Tetris"
+TITLE = "Tetris - milestone 4: lines, score and levels"
 
 BOARD_COLOR = (20, 24, 32)
 GRID_LINE_COLOR = (44, 50, 64)
 
-# ----- gravity -----
-BASE_FALL_EVERY = 0.6  # seconds per row (levels will speed this up later)
-FALL_STEP_PER_LEVEL = 0.05
-MIN_FALL_EVERY = 0.08
+# ----- gravity and levels -----
+BASE_FALL_EVERY = 0.6  # seconds per row at level 1
+FALL_STEP_PER_LEVEL = 0.05  # each level is this much faster...
+MIN_FALL_EVERY = 0.08  # ...but never faster than this
 SOFT_DROP_EVERY = 0.04
-LINES_PER_LEVEL = 10 
+LINES_PER_LEVEL = 10
 
 # ----- pieces -----
 SPAWN_COL = COLS // 2 - 1
@@ -51,7 +64,7 @@ COLORS = {
 }
 
 # ----- scoring -----
-LINE_SCORES = {1: 100, 2: 300, 3: 500, 4: 800} 
+LINE_SCORES = {1: 100, 2: 300, 3: 500, 4: 800}  # multiplied by the level
 SOFT_DROP_POINTS = 1
 HARD_DROP_POINTS = 2
 
@@ -75,11 +88,17 @@ def fits(grid, cells, col, row):
             return False
     return True
 
+
 def rotate_cw(cells):
-    """(c, r) -> (r, -c): a quarter turn clockwise around the (0, 0) cell."""
     return [(r, -c) for c, r in cells]
 
+
 def clear_full_rows(grid):
+    """Keep every row that still has a gap, then top up with empty rows.
+
+    Row 0 is the bottom, so the kept rows slide down to fill the holes and the
+    new empty rows are appended at the TOP. No shifting loop needed.
+    """
     kept = [row for row in grid if None in row]
     cleared = ROWS - len(kept)
     for _ in range(cleared):
@@ -101,6 +120,8 @@ class Tetris(arcade.Window):
         super().__init__(SCREEN_WIDTH, SCREEN_HEIGHT, TITLE)
         self.background_color = arcade.color.DARK_SLATE_GRAY
 
+        # arcade.Text objects are made ONCE here and only get a new .value each
+        # frame. Creating new Text objects every frame is slow.
         top = SCREEN_HEIGHT
         self.t_score_label = arcade.Text(
             "SCORE", PANEL_X, top - 60, arcade.color.LIGHT_GRAY, 13
@@ -132,19 +153,22 @@ class Tetris(arcade.Window):
 
         self.fall_timer = 0.0
         self.game_over = False
-        self.soft_drop = False  # True while Down is held
+        self.soft_drop = False
         self._spawn_piece()
 
-        # ---- state ----
-        @property
-        def level(self):
-            return 1 + self.lines // LINES_PER_LEVEL
+    # ------------------------------------------------ state
 
-        @property
-        def fall_every(self):
-            return max(
-                MIN_FALL_EVERY, BASE_FALL_EVERY - FALL_STEP_PER_LEVEL * (self.level - 1)
-            )
+    @property
+    def level(self):
+        """Worked out from lines, never stored - so it can't get out of sync."""
+        return 1 + self.lines // LINES_PER_LEVEL
+
+    @property
+    def fall_every(self):
+        """Faster every level, but never past the floor."""
+        return max(
+            MIN_FALL_EVERY, BASE_FALL_EVERY - FALL_STEP_PER_LEVEL * (self.level - 1)
+        )
 
     # ------------------------------------------------ pieces
 
@@ -250,6 +274,7 @@ class Tetris(arcade.Window):
         if self.game_over:
             return
 
+        # Soft drop should never be SLOWER than normal gravity at high levels.
         interval = (
             min(SOFT_DROP_EVERY, self.fall_every) if self.soft_drop else self.fall_every
         )
@@ -312,7 +337,7 @@ class Tetris(arcade.Window):
 
     def _draw_overlay(self, big, mid, small, hint):
         board = arcade.LBWH(BOARD_LEFT, BOARD_BOTTOM, BOARD_WIDTH, BOARD_HEIGHT)
-        arcade.draw_rect_filled(board, (0, 0, 0, 170))
+        arcade.draw_rect_filled(board, (0, 0, 0, 170))  # 4th number = see-through
         self.t_big.value = big
         self.t_mid.value = mid
         self.t_small.value = small
@@ -338,6 +363,7 @@ class Tetris(arcade.Window):
                 f"{self.lines} lines - level {self.level}",
                 "press Esc to quit",
             )
+
 
 window = Tetris()
 arcade.run()
