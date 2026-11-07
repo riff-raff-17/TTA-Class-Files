@@ -11,6 +11,7 @@ BOARD_BOTTOM = 40
 BOARD_WIDTH = COLS * CELL
 BOARD_HEIGHT = ROWS * CELL
 
+PANEL_X = BOARD_LEFT + BOARD_WIDTH + 30
 SCREEN_WIDTH = BOARD_LEFT + BOARD_WIDTH + 250
 SCREEN_HEIGHT = BOARD_BOTTOM + BOARD_HEIGHT + 40
 TITLE = "Tetris"
@@ -20,7 +21,10 @@ GRID_LINE_COLOR = (44, 50, 64)
 
 # ----- gravity -----
 BASE_FALL_EVERY = 0.6  # seconds per row (levels will speed this up later)
-SOFT_DROP_EVERY = 0.04 
+FALL_STEP_PER_LEVEL = 0.05
+MIN_FALL_EVERY = 0.08
+SOFT_DROP_EVERY = 0.04
+LINES_PER_LEVEL = 10 
 
 # ----- pieces -----
 SPAWN_COL = COLS // 2 - 1
@@ -46,6 +50,11 @@ COLORS = {
     "L": (245, 150, 30),
 }
 
+# ----- scoring -----
+LINE_SCORES = {1: 100, 2: 300, 3: 500, 4: 800} 
+SOFT_DROP_POINTS = 1
+HARD_DROP_POINTS = 2
+
 
 # ---------------------------------------------------------------- pure logic
 
@@ -70,6 +79,13 @@ def rotate_cw(cells):
     """(c, r) -> (r, -c): a quarter turn clockwise around the (0, 0) cell."""
     return [(r, -c) for c, r in cells]
 
+def clear_full_rows(grid):
+    kept = [row for row in grid if None in row]
+    cleared = ROWS - len(kept)
+    for _ in range(cleared):
+        kept.append([None] * COLS)
+    return kept, cleared
+
 
 # ---------------------------------------------------------------- drawing helpers
 
@@ -85,11 +101,50 @@ class Tetris(arcade.Window):
         super().__init__(SCREEN_WIDTH, SCREEN_HEIGHT, TITLE)
         self.background_color = arcade.color.DARK_SLATE_GRAY
 
+        top = SCREEN_HEIGHT
+        self.t_score_label = arcade.Text(
+            "SCORE", PANEL_X, top - 60, arcade.color.LIGHT_GRAY, 13
+        )
+        self.t_score = arcade.Text("", PANEL_X, top - 96, arcade.color.WHITE, 28)
+        self.t_level = arcade.Text("", PANEL_X, top - 160, arcade.color.WHITE, 16)
+        self.t_lines = arcade.Text("", PANEL_X, top - 186, arcade.color.WHITE, 16)
+        self.t_clear = arcade.Text("", PANEL_X, top - 216, arcade.color.GOLD, 14)
+
+        mid_x = BOARD_LEFT + BOARD_WIDTH / 2
+        mid_y = BOARD_BOTTOM + BOARD_HEIGHT / 2
+        self.t_big = arcade.Text(
+            "", mid_x, mid_y + 40, arcade.color.WHITE, 30, anchor_x="center"
+        )
+        self.t_mid = arcade.Text(
+            "", mid_x, mid_y, arcade.color.GOLD, 18, anchor_x="center"
+        )
+        self.t_small = arcade.Text(
+            "", mid_x, mid_y - 30, arcade.color.LIGHT_GRAY, 14, anchor_x="center"
+        )
+        self.t_hint = arcade.Text(
+            "", mid_x, mid_y - 70, arcade.color.LIGHT_GRAY, 14, anchor_x="center"
+        )
+
         self.grid = make_grid()
+        self.score = 0
+        self.lines = 0
+        self.clear_message = ""
+
         self.fall_timer = 0.0
         self.game_over = False
         self.soft_drop = False  # True while Down is held
         self._spawn_piece()
+
+        # ---- state ----
+        @property
+        def level(self):
+            return 1 + self.lines // LINES_PER_LEVEL
+
+        @property
+        def fall_every(self):
+            return max(
+                MIN_FALL_EVERY, BASE_FALL_EVERY - FALL_STEP_PER_LEVEL * (self.level - 1)
+            )
 
     # ------------------------------------------------ pieces
 
@@ -101,13 +156,32 @@ class Tetris(arcade.Window):
         self.fall_timer = 0.0
 
         if not fits(self.grid, self.piece_cells, self.piece_col, self.piece_row):
-            self.game_over = True
-            print("Game over. Press Esc to close.")
+            self._end_game()
+
+    def _end_game(self):
+        self.game_over = True
 
     def _lock_piece(self):
         color = COLORS[self.piece_kind]
         for col, row in piece_blocks(self.piece_cells, self.piece_col, self.piece_row):
             self.grid[row][col] = color
+
+        # Score with the level the lines were cleared AT, not the one they lead to.
+        level_before = self.t_level
+        self.grid, cleared = clear_full_rows(self.grid)
+        if cleared > 0:
+            points = LINE_SCORES[cleared] * level_before
+            self.score += points
+            self.lines += cleared
+            if cleared == 4:
+                self.clear_message = f"TETRIS! +{points:,}"
+            else:
+                self.clear_message = (
+                    f"{cleared} line{'s' if cleared > 1 else ''}  +{points:,}"
+                )
+            if self.level > level_before:
+                self.clear_message = f"LEVEL {self.level}!"
+
         self._spawn_piece()
 
     def _try_move(self, d_col, d_row):
@@ -131,12 +205,18 @@ class Tetris(arcade.Window):
         return False
 
     def _step_down(self):
-        if not self._try_move(0, -1):
+        if self._try_move(0, -1):
+            if self.soft_drop:
+                self.score += SOFT_DROP_POINTS
+        else:
             self._lock_piece()
 
     def _hard_drop(self):
+        rows = 0
         while fits(self.grid, self.piece_cells, self.piece_col, self.piece_row - 1):
             self.piece_row -= 1
+            rows += 1
+        self.score += rows * HARD_DROP_POINTS
         self._lock_piece()
 
     # ------------------------------------------------ input
@@ -170,7 +250,9 @@ class Tetris(arcade.Window):
         if self.game_over:
             return
 
-        interval = SOFT_DROP_EVERY if self.soft_drop else BASE_FALL_EVERY
+        interval = (
+            min(SOFT_DROP_EVERY, self.fall_every) if self.soft_drop else self.fall_every
+        )
         self.fall_timer += delta_time
         if self.fall_timer >= interval:
             self.fall_timer -= interval
@@ -214,6 +296,30 @@ class Tetris(arcade.Window):
         for col, row in piece_blocks(self.piece_cells, self.piece_col, self.piece_row):
             arcade.draw_rect_filled(cell_rect(col, row), color)
 
+    def _draw_panel(self):
+        self.t_score.value = f"{self.score:,}"
+        self.t_level.value = f"level {self.level}"
+        self.t_lines.value = f"lines {self.lines}"
+        self.t_clear.value = self.clear_message
+        for text in (
+            self.t_score_label,
+            self.t_score,
+            self.t_level,
+            self.t_lines,
+            self.t_clear,
+        ):
+            text.draw()
+
+    def _draw_overlay(self, big, mid, small, hint):
+        board = arcade.LBWH(BOARD_LEFT, BOARD_BOTTOM, BOARD_WIDTH, BOARD_HEIGHT)
+        arcade.draw_rect_filled(board, (0, 0, 0, 170))
+        self.t_big.value = big
+        self.t_mid.value = mid
+        self.t_small.value = small
+        self.t_hint.value = hint
+        for text in (self.t_big, self.t_mid, self.t_small, self.t_hint):
+            text.draw()
+
     def on_draw(self):
         self.clear()
         self._draw_board()
@@ -223,7 +329,15 @@ class Tetris(arcade.Window):
 
         board = arcade.LBWH(BOARD_LEFT, BOARD_BOTTOM, BOARD_WIDTH, BOARD_HEIGHT)
         arcade.draw_rect_outline(board, arcade.color.LIGHT_GRAY, border_width=2)
+        self._draw_panel()
 
+        if self.game_over:
+            self._draw_overlay(
+                "GAME OVER",
+                f"{self.score:,} points",
+                f"{self.lines} lines - level {self.level}",
+                "press Esc to quit",
+            )
 
 window = Tetris()
 arcade.run()

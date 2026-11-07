@@ -1,7 +1,9 @@
 #include <array>
 #include <iostream>
+#include <optional>
 #include <stdexcept>
 #include <string>
+#include <utility>
 
 struct Board {
     std::array<std::array<int, 9>, 9> cells{};
@@ -62,43 +64,97 @@ bool isValid(const Board& board, int row, int col, int value) {
     return true;
 }
 
-struct Check {
-    int row, col, value;
-    bool expectedValid;
-    const char* reason;
+std::optional<std::pair<int, int>> findEmptyCell(const Board& board) {
+    for (int row = 0; row < 9; row++) {
+        for (int col = 0; col < 9; col++) {
+            if (board.cells[row][col] == 0) return std::make_pair(row, col);
+        }
+    }
+    return std::nullopt;
+}
+
+struct SolveStats {
+    long long calls = 0;
+    long long callLimit = 1'000'000'000;
+    bool gaveUp = false;
 };
+
+bool solve(Board& board, SolveStats& stats) {
+    if (stats.calls >= stats.callLimit) {
+        stats.gaveUp = true;
+        return false;
+    }
+    ++stats.calls;
+
+    std::optional<std::pair<int, int>> empty = findEmptyCell(board);
+    if (!empty) return true;  // no empty cells left: solved
+
+    auto [row, col] = *empty;
+    for (int value = 1; value <= 9; value++) {
+        if (!isValid(board, row, col, value)) continue;
+
+        board.cells[row][col] = value;
+        if (solve(board, stats)) return true;
+        board.cells[row][col] = 0;  // backtrack
+        if (stats.gaveUp) return false;
+    }
+    return false;
+}
+
+bool isSolvedBoard(const Board& board) {
+    for (int row = 0; row < 9; row ++) {
+        for (int col = 0; col < 9; col++) {
+            int value = board.cells[row][col];
+            if (value == 0) return false;
+            if (!isValid(board, row, col, value)) return false;
+        }
+    }
+    return true;
+}
+
+int countClues(const Board& board) {
+    int clues = 0;
+    for (const auto& row : board.cells) {
+        for (int value : row) {
+            if (value != 0) clues++;
+        }
+    }
+    return clues;
+}
 
 int main() {
     Board board = Board::fromString(
-        "2.34....5"
-        "8.916.7.4"
-        "..6.3..19"
-        "7.2..3.6."
-        "..825...."
-        "..16.7..2"
-        "..7..5926"
-        "93.72...."
-        "6...9.47."
+        "53......."
+        "6..195..."
+        ".98....6."
+        "8.......3"
+        "4....3..1"
+        "7...2...6"
+        ".6....2.."
+        "...4.9..5"
+        "....8..79"
     );
+
+    std::cout << "Puzzle:\n";
     board.print();
     std::cout << '\n';
 
-    const Check checks[] = {
-        {0, 6, 2, false, "2 in the same row"},
-        {0, 1, 1, true, "No 1 in row 0, column 1, or in the top left box"},
-        {4, 6, 6, false, "6 in the same box"}
-    };
+    auto start = std::chrono::steady_clock::now();
+    bool solved = solve(board);
+    auto end = std::chrono::steady_clock::now();
+    double elapsedMs = std::chrono::duration<double, std::milli>(end - start).count();
 
-    bool allPassed = true;
-
-    for (const Check& check : checks) {
-        bool actual = isValid(board, check.row, check.col, check.value);
-        bool pass = actual == check.expectedValid;
-        allPassed &= pass;
-        std::cout << (pass ? "PASS" : "FAIL") << "  (" << check.row << ',' << check.col
-                  << ")=" << check.value << "  expected " << (check.expectedValid ? "valid" : "invalid")
-                  << ", got " << (actual ? "valid" : "invalid") << "  -- " << check.reason << '\n';
+    if (!solved) {
+        std::cout << "No solution found.\n";
+        return 1;
     }
 
-    return allPassed ? 0 : 1;
+    std::cout << "Solved in " << elapsedMs << " ms:\n";
+    board.print();
+    std::cout << '\n';
+
+    bool verified = isSolvedBoard(board);
+    std::cout << "Verification: " << (verified ? "PASS (valid completed Sudoku)" : "FAIL") << '\n';
+
+    return verified ? 0 : 1;
 }
