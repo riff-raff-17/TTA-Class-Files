@@ -103,6 +103,31 @@ bool solve(Board& board, SolveStats& stats) {
     return false;
 }
 
+struct MrvCell {
+    int row;
+    int col;
+    int candidates;
+};
+
+std::optional<MrvCell> findMrvCell(const Board& board, const CandidateMasks& masks) {
+    std::optional<MrvCell> best;
+    int bestCount = 10;
+    for (int row = 0; row < 9; row++) {
+        for (int col = 0; col < 9; col++) {
+            if (board.cells[row][col] != 0) continue;
+
+            int candidates = masks.candidatesAt(row, col);
+            int count = __builtin_popcount(candidates);
+            if (count < bestCount) {
+                best = MrvCell{row, col, candidates};
+                bestCount = count;
+                if (count <= 1) return best;
+            }
+        }
+    }
+    return best;
+}
+
 bool isSolvedBoard(const Board& board) {
     for (int row = 0; row < 9; row ++) {
         for (int col = 0; col < 9; col++) {
