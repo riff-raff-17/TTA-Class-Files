@@ -8,4 +8,5 @@ dependencies = [
     "numpy>=2.5.3",
     "pip>=26.2.1",
     "scikit-learn>=1.9.1",
+    "torch>=2.15.0",
 ]

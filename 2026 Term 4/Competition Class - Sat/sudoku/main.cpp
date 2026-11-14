@@ -1,4 +1,6 @@
 #include <array>
+#include <chrono>
+#include <iomanip>
 #include <iostream>
 #include <optional>
 #include <stdexcept>
@@ -122,8 +124,92 @@ int countClues(const Board& board) {
     return clues;
 }
 
+// 69175317 -> "69,175,317", so call counts that differ by orders of
+// magnitude are readable.
+std::string withThousandsSeparators(long long number) {
+    std::string digits = std::to_string(number);
+    std::string result;
+    for (std::size_t i = 0; i < digits.size(); i++) {
+        if (i != 0 && (digits.size() - i) % 3 == 0) result += ',';
+        result += digits[i];
+    }
+    return result;
+}
+
+struct Puzzle {
+    std::string name;
+    std::string text;
+};
+
+struct PuzzleResult {
+    std::string name;
+    int clues = 0;
+    SolveStats stats;
+    double elapsedMs = 0;
+    bool solved = false;
+    bool verified = false;
+};
+
+PuzzleResult runPuzzle(const Puzzle& puzzle) {
+    Board board = Board::fromString(puzzle.text);
+
+    PuzzleResult result;
+    result.name = puzzle.name;
+    result.clues = countClues(board);
+
+    std::cout << "=== " << puzzle.name << " (" << result.clues << " clues) ===\n";
+    board.print();
+    std::cout << '\n';
+
+    auto start = std::chrono::steady_clock::now();
+    result.solved = solve(board, result.stats);
+    auto end = std::chrono::steady_clock::now();
+    result.elapsedMs = std::chrono::duration<double, std::milli>(end - start).count();
+
+    if (result.stats.gaveUp) {
+        std::cout << "Gave up after " << withThousandsSeparators(result.stats.calls) << " calls )"
+                    << result.elapsedMs << " ms).\n\n";
+        return result;
+    }
+    if (!result.solved) {
+        std::cout << "No solution found.\n\n";
+        return result;
+    }
+
+    std::cout << "Solved in " << result.elapsedMs << " ms, " << withThousandsSeparators(result.stats.calls)
+                << " calls:\n";
+    board.print();
+
+    result.verified = isSolvedBoard(board);
+    std::cout << "Verification: " << (result.verified ? "PASS (valid completed Sudoku)" : "FAIL") << "\n\n";
+    return result;
+}
+
+void printSummary(const std::vector<PuzzleResult>& results) {
+    std::cout << "=== Summary ===\n";
+    std::cout << std::left << std::setw(30) << "Puzzle" << std::right << std::setw(6) << "Clues"
+                << std::setw(16) << "Calls" << std::setw(14) << "Time (ms)" << "  Result\n";
+    
+    for (const PuzzleResult& result : results) {
+        std::string outcome;
+        if (result.stats.gaveUp) {
+            outcome = "GAVE UP";
+        } else if (!result.solved) {
+            outcome = "NO SOLUTION";
+        } else {
+            outcome = result.verified ? "PASS" : "FAIL";
+        }
+
+    std::cout << std::left << std::setw(30) << result.name << std::right << std::setw(6) << result.clues
+                << std::setw(16) << withThousandsSeparators(result.stats.calls) << std::setw(14) 
+                << std::fixed << std::setprecision(1) << result.elapsedMs << std::defaultfloat <<
+                "  " << outcome << '\n';
+    }
+}
+
 int main() {
-    Board board = Board::fromString(
+    std::vector<Puzzle> puzzles = {
+        {"Normal",
         "53......."
         "6..195..."
         ".98....6."
@@ -132,29 +218,47 @@ int main() {
         "7...2...6"
         ".6....2.."
         "...4.9..5"
-        "....8..79"
-    );
+        "....8..79"},
+        {"AI Escargot",
+        "1....7.9."
+        ".3..2...8"
+        "..96..5.."
+        "..53..9.."
+        ".1..8...2"
+        "6....4..."
+        "3......1."
+        ".4......7"
+        "..7...3.."},
+        {"Inkala 2012",
+        "8........"
+        "..36....."
+        ".7..9.2.."
+        ".5...7..."
+        "....457.."
+        "...1...3."
+        "..1....68"
+        "..85...1."
+        ".9....4.."},
+        {"Anti-brute-force (Wikipedia)",
+        "........."
+        ".....3.85"
+        "..1.2...."
+        "...5.7..."
+        "..4...1.."
+        ".9......."
+        "5......73"
+        "..2.1...."
+        "....4...9"},
+    };
 
-    std::cout << "Puzzle:\n";
-    board.print();
-    std::cout << '\n';
-
-    auto start = std::chrono::steady_clock::now();
-    bool solved = solve(board);
-    auto end = std::chrono::steady_clock::now();
-    double elapsedMs = std::chrono::duration<double, std::milli>(end - start).count();
-
-    if (!solved) {
-        std::cout << "No solution found.\n";
-        return 1;
+    std::vector<PuzzleResult> results;
+    for (const Puzzle& puzzle : puzzles) {
+        results.push_back(runPuzzle(puzzle));
     }
+    printSummary(results);
 
-    std::cout << "Solved in " << elapsedMs << " ms:\n";
-    board.print();
-    std::cout << '\n';
-
-    bool verified = isSolvedBoard(board);
-    std::cout << "Verification: " << (verified ? "PASS (valid completed Sudoku)" : "FAIL") << '\n';
-
-    return verified ? 0 : 1;
+    for (const PuzzleResult& result : results) {
+        if (result.stats.gaveUp) continue;
+        if (!result.solved || !result.verified) return 1;
+    }
 }
