@@ -5,6 +5,7 @@ requires-python = ">=3.13"
 dependencies = [
     "ipykernel>=7.3.0",
     "matplotlib>=3.11.2",
+    "notebook>=7.6.5",
     "numpy>=2.5.3",
     "pip>=26.2.1",
     "scikit-learn>=1.9.1",
